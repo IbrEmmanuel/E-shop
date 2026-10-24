@@ -2,9 +2,10 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// SQLite for local/demo. Switch provider to "postgresql" and DATABASE_URL for production.
+// PostgreSQL for Vercel / production (Neon, Supabase, or Vercel Postgres).
+// Local: use the same Postgres URL, or a free Neon DB.
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 const envSchema = z.object({
-  DATABASE_URL: z.string().min(1),
-  AUTH_SECRET: z.string().min(16),
+  DATABASE_URL: z.string().min(1).optional().default(""),
+  AUTH_SECRET: z.string().min(1).optional().default(""),
   AUTH_URL: z.string().url().optional(),
   NEXT_PUBLIC_SITE_URL: z.string().url().default("http://localhost:3000"),
   PAYMENT_SECRET_KEY: z.string().optional().default(""),

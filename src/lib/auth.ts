@@ -92,27 +92,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 });
 
 export async function getSessionUser() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return null;
 
-  // Always re-check DB so carts/admin never use deleted user IDs after a reseed.
-  const dbUser = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      role: true,
-      status: true,
-    },
-  });
-  if (!dbUser || dbUser.status === "DISABLED") return null;
+    // Always re-check DB so carts/admin never use deleted user IDs after a reseed.
+    const dbUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        status: true,
+      },
+    });
+    if (!dbUser || dbUser.status === "DISABLED") return null;
 
-  return {
-    id: dbUser.id,
-    email: dbUser.email,
-    name: dbUser.name,
-    role: dbUser.role as Role,
-    status: dbUser.status,
-  };
+    return {
+      id: dbUser.id,
+      email: dbUser.email,
+      name: dbUser.name,
+      role: dbUser.role as Role,
+      status: dbUser.status,
+    };
+  } catch {
+    // Missing AUTH_SECRET / DB on Vercel must not take down the whole storefront.
+    return null;
+  }
 }

@@ -35,15 +35,23 @@ Open [http://localhost:3000](http://localhost:3000).
 
 Bootstrap accounts use `SEED_*` / `OWNER_*` from `.env` (defaults are for local only — rotate before any shared deploy).
 
-## Production checklist
+## Deploy on Vercel (required)
 
-1. Set `DATABASE_URL` to PostgreSQL and switch `prisma/schema.prisma` provider if needed.
-2. Set `NEXT_PUBLIC_SITE_URL`, `AUTH_SECRET`, `AUTH_URL`.
-3. Configure `PAYMENT_*` + webhook for live Paystack.
-4. Set `EMAIL_API_KEY` (Resend) and `EMAIL_FROM`.
-5. Optionally set `STORAGE_*` for S3/R2 image uploads.
-6. Run `npm run db:push` (or migrations) **without** seeding production with local passwords.
-7. `npm run build && npm run start` (or deploy to Vercel).
+SQLite does **not** work on Vercel. Use Postgres:
+
+1. Create a free DB on [Neon](https://neon.tech) or Vercel → Storage → Postgres.
+2. In the Vercel project → **Settings → Environment Variables**, set:
+   - `DATABASE_URL` — Postgres connection string (`postgresql://…`)
+   - `AUTH_SECRET` — `openssl rand -base64 32`
+   - `AUTH_URL` — `https://your-app.vercel.app`
+   - `NEXT_PUBLIC_SITE_URL` — same as `AUTH_URL`
+3. Redeploy.
+4. From your machine (with the same `DATABASE_URL` in `.env`):
+   ```bash
+   npx prisma db push
+   npm run db:seed
+   ```
+   (Skip seed on a real production store if you do not want demo admin users.)
 
 ## Scripts
 

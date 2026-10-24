@@ -13,8 +13,18 @@ const nav = [
 ];
 
 export async function SiteHeader() {
-  const user = await getSessionUser();
-  const guestKey = user ? null : await getGuestKey();
+  let user: Awaited<ReturnType<typeof getSessionUser>> = null;
+  try {
+    user = await getSessionUser();
+  } catch {
+    user = null;
+  }
+  let guestKey: string | null = null;
+  try {
+    guestKey = user ? null : await getGuestKey();
+  } catch {
+    guestKey = null;
+  }
   let itemCount = 0;
   let siteName = "E-Shop";
   try {
