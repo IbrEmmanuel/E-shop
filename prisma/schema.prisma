@@ -2,10 +2,10 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// PostgreSQL for Vercel / production (Neon, Supabase, or Vercel Postgres).
-// Local: use the same Postgres URL, or a free Neon DB.
+// Provider is synced from DATABASE_URL by scripts/sync-prisma-provider.mjs
+// (sqlite for file:… local, postgresql for Vercel / Neon).
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 

@@ -4,17 +4,17 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "node scripts/sync-prisma-provider.mjs && prisma generate && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:push": "prisma db push",
+    "db:generate": "node scripts/sync-prisma-provider.mjs && prisma generate",
+    "db:migrate": "node scripts/sync-prisma-provider.mjs && prisma migrate dev",
+    "db:push": "node scripts/sync-prisma-provider.mjs && prisma db push",
     "db:seed": "tsx prisma/seed.ts",
-    "db:setup": "prisma db push && tsx prisma/seed.ts",
+    "db:setup": "npm run db:push && npm run db:seed",
     "test": "tsx --test src/**/*.test.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "node scripts/sync-prisma-provider.mjs && prisma generate"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",
