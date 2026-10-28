@@ -113,6 +113,7 @@ export function AuthParticleOrb({
 
       const isDark =
         document.documentElement.getAttribute("data-theme") === "dark";
+      const isHero = wrap.classList.contains("auth-orb--hero");
       const bloom = ctx.createRadialGradient(
         cx,
         cy,
@@ -124,6 +125,11 @@ export function AuthParticleOrb({
       if (isDark) {
         bloom.addColorStop(0, "rgba(255, 118, 0, 0.22)");
         bloom.addColorStop(0.45, "rgba(255, 151, 61, 0.08)");
+        bloom.addColorStop(1, "rgba(255, 118, 0, 0)");
+      } else if (isHero) {
+        bloom.addColorStop(0, "rgba(255, 118, 0, 0.42)");
+        bloom.addColorStop(0.38, "rgba(255, 151, 61, 0.2)");
+        bloom.addColorStop(0.72, "rgba(232, 105, 0, 0.08)");
         bloom.addColorStop(1, "rgba(255, 118, 0, 0)");
       } else {
         bloom.addColorStop(0, "rgba(255, 118, 0, 0.34)");
@@ -156,6 +162,7 @@ export function AuthParticleOrb({
       }
 
       const projected: { x: number; y: number; z: number; s: number }[] = [];
+      const sizeBoost = isHero ? 1.22 : 1;
       for (const p of particles) {
         let x = p.ox * cosY - p.oz * sinY;
         let z = p.ox * sinY + p.oz * cosY;
@@ -172,7 +179,7 @@ export function AuthParticleOrb({
           x: cx + x,
           y: cy + y,
           z,
-          s: Math.max(0.4, 1.15 * scale * (width < 420 ? 0.85 : 1)),
+          s: Math.max(0.4, 1.15 * scale * sizeBoost * (width < 420 ? 0.85 : 1)),
         });
       }
 
@@ -182,8 +189,18 @@ export function AuthParticleOrb({
         const t =
           (p.z + Math.min(width, height) * 0.4) /
           (Math.min(width, height) * 0.8);
-        const alpha = 0.18 + Math.max(0, Math.min(1, t)) * 0.72;
-        if (t > 0.62) {
+        const alpha =
+          (isHero ? 0.28 : 0.18) + Math.max(0, Math.min(1, t)) * (isHero ? 0.78 : 0.72);
+        if (isHero && !isDark) {
+          // Terracotta/cream dots read on light hero wash (pure white vanishes)
+          if (t > 0.62) {
+            ctx.fillStyle = `rgba(255, 236, 214, ${alpha})`;
+          } else if (t > 0.35) {
+            ctx.fillStyle = `rgba(255, 140, 48, ${alpha})`;
+          } else {
+            ctx.fillStyle = `rgba(214, 90, 0, ${alpha * 0.9})`;
+          }
+        } else if (t > 0.62) {
           ctx.fillStyle = `rgba(255, 253, 250, ${alpha})`;
         } else if (t > 0.35) {
           ctx.fillStyle = `rgba(255, 151, 61, ${alpha * 0.95})`;

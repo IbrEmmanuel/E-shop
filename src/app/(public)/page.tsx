@@ -103,7 +103,7 @@ export default async function HomePage() {
   const sellImage = products[0]?.images[0]?.url || null;
   return (
     <div className="home-page">
-      <section className="home-hero relative min-h-[92vh] overflow-hidden">
+      <section className="home-hero">
         <div className="home-hero__backdrop" aria-hidden>
           <div className="home-hero__atmosphere">
             <span className="home-hero__glow home-hero__glow--a" />
@@ -117,12 +117,11 @@ export default async function HomePage() {
               variant="hero"
               className="home-hero__orb"
             />
-            <span className="home-hero__floor-shadow" />
           </div>
           <div className="home-hero__wash" />
         </div>
-        <div className="container-page relative z-[2] flex min-h-[92vh] items-end pb-16 pt-28 md:items-center md:pb-24 md:pt-24">
-          <div className="relative max-w-xl space-y-5 md:max-w-2xl md:space-y-6">
+        <div className="home-hero__content container-page">
+          <div className="home-hero__copy">
             <p className="home-reveal home-reveal--1 type-h1">
               {settings.siteName}
             </p>
