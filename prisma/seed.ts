@@ -17,7 +17,7 @@ async function main() {
   const adminPass =
     process.env.SEED_ADMIN_PASSWORD ||
     process.env.OWNER_PASSWORD ||
-    "emmydone";
+    "emmydone123456";
 
   console.log("[seed] Clearing marketplace catalog & commerce tables…");
   await prisma.adEvent.deleteMany().catch(() => undefined);

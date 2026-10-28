@@ -39,7 +39,7 @@ async function main() {
         data: {
           name: existing.name || "Owner",
           passwordHash: hash,
-          role: "ADMIN",
+          role: "SUPER_ADMIN",
           status: "ACTIVE",
         },
       })
@@ -48,7 +48,7 @@ async function main() {
           email,
           name: "Owner",
           passwordHash: hash,
-          role: "ADMIN",
+          role: "SUPER_ADMIN",
           status: "ACTIVE",
           customerProfile: { create: {} },
         },
