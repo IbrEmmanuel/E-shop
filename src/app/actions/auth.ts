@@ -151,7 +151,15 @@ export async function loginAction(
     });
   } catch (e) {
     if (e instanceof AuthError) {
-      return { ok: false, error: "Invalid email or password." };
+      // CredentialsSignin = bad email/password; other AuthError types are config/host issues.
+      if (e.type === "CredentialsSignin") {
+        return { ok: false, error: "Invalid email or password." };
+      }
+      console.error("[loginAction] AuthError", e.type, e.message);
+      return {
+        ok: false,
+        error: "Sign-in failed. Check AUTH_URL matches this site origin and try again.",
+      };
     }
     throw e;
   }
