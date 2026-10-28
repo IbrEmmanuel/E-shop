@@ -211,13 +211,23 @@ export async function adminEnsurePlatformShop(
 ): Promise<Vendor> {
   const admin = requireAdmin(user);
 
-  const existing = await prisma.vendor.findUnique({
-    where: { userId: admin.id },
-  });
-  if (existing) return existing;
-
   const { getOrCreatePlatformPlan } = await import("@/services/rentals");
   const plan = await getOrCreatePlatformPlan();
+
+  const existing = await prisma.vendor.findUnique({
+    where: { userId: admin.id },
+    include: { rental: true },
+  });
+  if (existing) {
+    // Keep the official shop on the internal platform plan (not Starter caps).
+    if (existing.rental && existing.rental.planId !== plan.id) {
+      await prisma.vendorRental.update({
+        where: { id: existing.rental.id },
+        data: { planId: plan.id, status: "ACTIVE" },
+      });
+    }
+    return existing;
+  }
 
   const categoryCount = await prisma.category.count();
   if (categoryCount === 0) {
