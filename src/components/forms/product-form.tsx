@@ -24,6 +24,7 @@ type ProductDefaults = {
   inventoryQty?: number;
   categoryId?: string | null;
   status?: string;
+  rejectionReason?: string | null;
   imageUrl?: string | null;
   seoTitle?: string | null;
   seoDescription?: string | null;
@@ -48,13 +49,23 @@ export function ProductForm({
   );
 
   return (
-    <form action={action} className="card max-w-2xl space-y-4 p-6">
+    <form
+      action={action}
+      className="card max-w-2xl space-y-4 p-6"
+      encType="multipart/form-data"
+    >
       {product?.id ? (
         <input type="hidden" name="productId" value={product.id} />
       ) : null}
       {state && !state.ok ? <Alert tone="danger">{state.error}</Alert> : null}
       {state && state.ok && state.message ? (
         <Alert tone="success">{state.message}</Alert>
+      ) : null}
+      {product?.status === "REJECTED" && product.rejectionReason ? (
+        <Alert tone="warning">
+          Rejected by admin: {product.rejectionReason}. Edit and set status to
+          Pending review to resubmit.
+        </Alert>
       ) : null}
       {!isEdit && vendors && vendors.length > 0 ? (
         <div>
@@ -93,14 +104,19 @@ export function ProductForm({
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <Label htmlFor="price">Price (NGN major units)</Label>
+          <Label htmlFor="price">Price (NGN)</Label>
           <Input
             id="price"
             name="price"
+            type="text"
+            inputMode="decimal"
             required
-            placeholder="0.00"
+            placeholder="e.g. 15000 or 15000.00"
             defaultValue={product?.price}
           />
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            Enter naira only — e.g. <code>2500</code> or <code>2500.50</code>
+          </p>
         </div>
         <div>
           <Label htmlFor="inventoryQty">Inventory</Label>
@@ -139,13 +155,32 @@ export function ProductForm({
           >
             <option value="DRAFT">Draft</option>
             <option value="PENDING_REVIEW">Pending review</option>
-            <option value="PUBLISHED">Published</option>
+            <option value="PUBLISHED">Published (admin may still review)</option>
+            <option value="REJECTED">Rejected — resubmit via pending review</option>
             <option value="ARCHIVED">Archived</option>
           </Select>
         </div>
       </div>
       <div>
-        <Label htmlFor="imageUrl">Image URL</Label>
+        <Label htmlFor="imageFile">Product photo</Label>
+        <Input
+          id="imageFile"
+          name="imageFile"
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              setImagePreview(URL.createObjectURL(file));
+            }
+          }}
+        />
+        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+          Upload from your device (JPEG, PNG, WebP, GIF — up to 12 MB).
+        </p>
+        <Label htmlFor="imageUrl" className="mt-4 block">
+          Or image URL
+        </Label>
         <Input
           id="imageUrl"
           name="imageUrl"
@@ -153,9 +188,6 @@ export function ProductForm({
           defaultValue={product?.imageUrl ?? ""}
           onChange={(e) => setImagePreview(e.target.value)}
         />
-        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          Paste an image URL to set or replace the product photo.
-        </p>
         {imagePreview ? (
           <div className="relative mt-3 aspect-[4/3] w-full max-w-xs overflow-hidden rounded-[var(--radius-md)] bg-[var(--color-bg-subtle)]">
             <SafeImage

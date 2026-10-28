@@ -29,7 +29,7 @@ export default async function VendorSalesOrdersPage({
   const tab = parseVendorOrderTab(params.tab);
 
   const scopeVendorId =
-    user.vendor?.id ?? (user.role === "ADMIN" ? null : undefined);
+    user.vendor?.id ?? ((user.role === "ADMIN" || user.role === "SUPER_ADMIN") ? null : undefined);
 
   if (scopeVendorId === undefined) {
     return (
@@ -112,7 +112,7 @@ export default async function VendorSalesOrdersPage({
                         <Badge tone={vendorOrderBadgeTone(vo.status)}>
                           {vendorOrderTabLabel(vo.status)}
                         </Badge>
-                        {user.role === "ADMIN" && vo.vendor ? (
+                        {(user.role === "ADMIN" || user.role === "SUPER_ADMIN") && vo.vendor ? (
                           <span className="text-xs font-medium text-[var(--color-text-muted)]">
                             {vo.vendor.storeName}
                           </span>
@@ -160,7 +160,7 @@ export default async function VendorSalesOrdersPage({
                       <p className="font-semibold tabular-nums">
                         {formatMoney(vo.totalMinor, vo.order.currency)}
                       </p>
-                      {user.role === "ADMIN" ? (
+                      {(user.role === "ADMIN" || user.role === "SUPER_ADMIN") ? (
                         <VendorOrderActions
                           vendorOrderId={vo.id}
                           status={vo.status}

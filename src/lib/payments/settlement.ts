@@ -1,6 +1,9 @@
 /**
  * Merchant settlement accounts for direct bank / fintech-app transfers.
- * Customers pay from OPay, Moniepoint, PalmPay, Kuda, UBA, etc. into these accounts.
+ * Customers choose a payment method (OPay / UBA / other banks), transfer into
+ * these accounts, then admin confirms via server-side verification.
+ *
+ * @see PAYMENT_METHODS in ./methods.ts
  */
 
 export type SettlementAccount = {

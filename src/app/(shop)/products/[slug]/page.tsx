@@ -13,9 +13,18 @@ import { siteUrl } from "@/lib/env";
 import { recordProductView } from "@/services/advertising";
 import { isFavourite } from "@/services/favourites";
 import {
+  ProductReviewForm,
+  ProductReviewsList,
+} from "@/components/products/product-reviews";
+import {
   getProductBySlug,
   getRelatedProducts,
 } from "@/services/products";
+import {
+  canReviewProduct,
+  getProductRatingSummary,
+  listProductReviews,
+} from "@/services/reviews";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -45,6 +54,16 @@ export default async function ProductPage({ params }: Props) {
   const favourited = session
     ? await isFavourite(session.id, product.id).catch(() => false)
     : false;
+  const [reviews, rating, canReview] = await Promise.all([
+    listProductReviews(product.id).catch(() => []),
+    getProductRatingSummary(product.id).catch(() => ({
+      average: 0,
+      count: 0,
+    })),
+    session
+      ? canReviewProduct(session.id, product.id).catch(() => false)
+      : Promise.resolve(false),
+  ]);
   void recordProductView({
     productId: product.id,
     categoryId: product.categoryId,
@@ -218,13 +237,25 @@ export default async function ProductPage({ params }: Props) {
       </div>
       <div className="h-24 md:hidden" aria-hidden />
 
+      <ProductReviewsList
+        reviews={reviews}
+        average={rating.average}
+        count={rating.count}
+      />
+      {session ? (
+        <ProductReviewForm productId={product.id} canReview={canReview} />
+      ) : (
+        <p className="mt-4 text-sm text-[var(--color-text-secondary)]">
+          <Link href={`/login?callbackUrl=/products/${product.slug}`} className="font-semibold underline">
+            Sign in
+          </Link>{" "}
+          after purchase to leave a review.
+        </p>
+      )}
+
       {related.length > 0 ? (
         <section className="mt-16">
-          <h2
-            className="mb-6 text-2xl"
-          >
-            You may also like
-          </h2>
+          <h2 className="mb-6 text-2xl">You may also like</h2>
           <ProductGrid products={related} />
         </section>
       ) : null}

@@ -18,7 +18,7 @@ import { ensureUserWorkspace } from "@/services/workspace";
 async function updateStorefrontAction(formData: FormData) {
   "use server";
   const user = await getSessionUser();
-  if (!user || user.role !== "ADMIN") return;
+  if (!user || (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN")) return;
 
   const vendorId = String(formData.get("vendorId") ?? "");
   const vendor = await prisma.vendor.findUnique({ where: { id: vendorId } });

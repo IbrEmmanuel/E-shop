@@ -43,6 +43,8 @@ export async function registerAction(
 
   const nameParts = parsed.data.name.trim().split(/\s+/);
   const passwordHash = await bcrypt.hash(parsed.data.password, 12);
+  const phone = String(formData.get("phone") || "").trim() || null;
+
   await prisma.user.create({
     data: {
       email,
@@ -52,7 +54,7 @@ export async function registerAction(
       passwordHash,
       role: "CUSTOMER",
       referredById: referrer?.id ?? null,
-      customerProfile: { create: {} },
+      customerProfile: { create: { phone } },
     },
   });
 
@@ -69,6 +71,11 @@ export async function registerAction(
     throw e;
   }
 
+  const { sendEmailVerification } = await import(
+    "@/services/email-verification"
+  );
+  await sendEmailVerification(email).catch(() => undefined);
+
   const guestKey = await getGuestKey();
   if (guestKey) {
     const user = await prisma.user.findUnique({ where: { email } });
@@ -78,7 +85,16 @@ export async function registerAction(
     }
   }
 
-  redirect("/");
+  const callbackUrl = String(formData.get("callbackUrl") ?? "/account");
+  let dest = callbackUrl.startsWith("/") ? callbackUrl : "/account";
+  if (dest === "/") dest = "/account";
+  await signIn("credentials", {
+    email,
+    password: parsed.data.password,
+    redirectTo: dest,
+  });
+
+  redirect(dest);
 }
 
 export async function loginAction(
@@ -89,7 +105,45 @@ export async function loginAction(
   const password = String(formData.get("password") ?? "");
   const callbackUrl = String(formData.get("callbackUrl") ?? "/");
 
+  const dbUser = await prisma.user.findUnique({ where: { email } });
+  const role = dbUser?.role;
+  const fallback =
+    role === "SUPER_ADMIN"
+      ? "/super"
+      : role === "ADMIN"
+        ? "/admin"
+        : role === "VENDOR"
+          ? "/vendor"
+          : "/account";
+  let dest = callbackUrl.startsWith("/") ? callbackUrl : fallback;
+  const wantsAccountHome =
+    callbackUrl === "/account" ||
+    callbackUrl === "/" ||
+    callbackUrl.startsWith("/account");
+  if (wantsAccountHome && role === "SUPER_ADMIN") dest = "/super";
+  if (wantsAccountHome && role === "ADMIN") dest = "/admin";
+  if (wantsAccountHome && role === "VENDOR") dest = "/vendor";
+  if (dest === "/vendor" || dest.startsWith("/vendor/")) {
+    if (
+      !dest.startsWith("/vendor/apply") &&
+      role !== "VENDOR" &&
+      role !== "ADMIN" &&
+      role !== "SUPER_ADMIN"
+    ) {
+      dest = fallback;
+    }
+  }
+  if (dest === "/super" || dest.startsWith("/super/")) {
+    if (role !== "SUPER_ADMIN") dest = fallback;
+  }
+  if (dest === "/" && role === "CUSTOMER") dest = "/account";
+  if (dest === "/" && role === "VENDOR") dest = "/vendor";
+  if (dest === "/" && role === "ADMIN") dest = "/admin";
+  if (dest === "/" && role === "SUPER_ADMIN") dest = "/super";
+
   try {
+    // Authenticate first (no redirect) so we can merge the guest cart,
+    // then redirect via Auth.js so the session cookie is set on the response.
     await signIn("credentials", {
       email,
       password,
@@ -102,32 +156,20 @@ export async function loginAction(
     throw e;
   }
 
-  const dbUser = await prisma.user.findUnique({ where: { email } });
   const guestKey = await getGuestKey();
   if (guestKey && dbUser) {
     await mergeGuestCart(dbUser.id, guestKey);
     await clearGuestKey();
   }
 
-  const fallback = dbUser?.role === "ADMIN" ? "/admin" : "/";
-  let dest = callbackUrl.startsWith("/") ? callbackUrl : fallback;
-  if (
-    (callbackUrl === "/account" ||
-      callbackUrl === "/" ||
-      callbackUrl.startsWith("/account")) &&
-    dbUser?.role === "ADMIN"
-  ) {
-    dest = "/admin";
-  }
-  // Legacy vendor desk / account hub
-  if (dest === "/vendor" || dest.startsWith("/vendor/")) {
-    if (dest.startsWith("/vendor/apply")) redirect(dest);
-    redirect(fallback);
-  }
-  if (dest === "/account" || dest === "/account/addresses") {
-    redirect(fallback);
-  }
-  redirect(dest);
+  // Use Auth.js redirect so Set-Cookie from signIn is not dropped by next/navigation redirect().
+  await signIn("credentials", {
+    email,
+    password,
+    redirectTo: dest,
+  });
+
+  return { ok: true };
 }
 
 export async function logoutAction() {

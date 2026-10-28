@@ -54,7 +54,7 @@ export default async function OrderConfirmationPage({
   const canView =
     (user && order.userId === user.id) ||
     (!order.userId && order.guestEmail) ||
-    user?.role === "ADMIN";
+    (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN");
 
   if (!canView && user) {
     return (
@@ -90,8 +90,26 @@ export default async function OrderConfirmationPage({
 
   const payment = view.payments[0];
   const isBank = payment?.provider === "bank_transfer";
+  const isPaystack = payment?.provider === "paystack";
   const accounts = getSettlementAccounts();
   const tracking = buildOrderTracking(view);
+  const methodId =
+    typeof sp.method === "string" ? sp.method : undefined;
+  const accountId =
+    typeof sp.account === "string" ? sp.account : undefined;
+  let paymentMeta: {
+    method?: string;
+    preferredAccountId?: string;
+    authorizationUrl?: string;
+    channelLabel?: string;
+  } = {};
+  if (payment?.rawMetaJson) {
+    try {
+      paymentMeta = JSON.parse(payment.rawMetaJson) as typeof paymentMeta;
+    } catch {
+      paymentMeta = {};
+    }
+  }
 
   return (
     <div className="container-page max-w-2xl space-y-8 py-10 md:py-14">
@@ -122,10 +140,7 @@ export default async function OrderConfirmationPage({
       view.status === "PROCESSING" ||
       view.status === "SHIPPED" ||
       view.status === "DELIVERED" ? (
-        <Alert tone="success">
-          Payment approved. Follow the tracker above for packing and delivery
-          timing to your address.
-        </Alert>
+        <Alert tone="success">Payment confirmed. We are preparing your order.</Alert>
       ) : isBank && payment ? (
         <BankTransferPay
           orderNumber={view.orderNumber}
@@ -133,14 +148,33 @@ export default async function OrderConfirmationPage({
           currency={view.currency}
           accounts={accounts}
           paymentStatus={payment.status}
+          preferredAccountId={
+            accountId || paymentMeta.preferredAccountId || null
+          }
+          methodId={methodId || paymentMeta.method || "uba"}
+          defaultPaidVia={paymentMeta.channelLabel}
         />
+      ) : isPaystack &&
+        payment &&
+        payment.status !== "SUCCEEDED" &&
+        paymentMeta.authorizationUrl ? (
+        <div className="space-y-3">
+          <Alert tone="info">
+            Complete payment in the hosted checkout
+            {paymentMeta.channelLabel
+              ? ` (${paymentMeta.channelLabel})`
+              : ""}
+            . We confirm the order once the provider reports success.
+          </Alert>
+          <Button asChild href={paymentMeta.authorizationUrl} variant="primary">
+            Open checkout
+          </Button>
+        </div>
       ) : (
-        <Alert tone="info">
-          Complete payment to unlock packing and delivery tracking.
-        </Alert>
+        <Alert tone="info">Payment is still pending for this order.</Alert>
       )}
 
-      <div className="card space-y-2 p-5 text-sm">
+      <div className="space-y-3 border-t border-[var(--color-border)] pt-6 text-sm">
         <div className="flex justify-between">
           <span>Items</span>
           <span className="tabular-nums">
@@ -153,7 +187,7 @@ export default async function OrderConfirmationPage({
             {formatMoney(view.shippingMinor, view.currency)}
           </span>
         </div>
-        <div className="flex justify-between border-t border-[var(--color-border)] pt-2 font-semibold">
+        <div className="flex justify-between border-t border-[var(--color-border)] pt-3 font-semibold">
           <span>Total</span>
           <span className="tabular-nums">
             {formatMoney(view.totalMinor, view.currency)}
@@ -161,11 +195,11 @@ export default async function OrderConfirmationPage({
         </div>
       </div>
 
-      <ul className="card divide-y divide-[var(--color-border)]">
+      <ul className="divide-y divide-[var(--color-border)] border-y border-[var(--color-border)]">
         {view.items.map((item) => (
           <li
             key={item.id}
-            className="flex justify-between gap-4 px-4 py-3 text-sm"
+            className="flex justify-between gap-4 py-3 text-sm"
           >
             <span>
               {item.titleSnapshot} × {item.quantity}
@@ -177,18 +211,13 @@ export default async function OrderConfirmationPage({
         ))}
       </ul>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-3">
         <Button asChild href={`/account/orders/${view.orderNumber}`} variant="primary">
-          Track this order
+          Track order
         </Button>
         <Button asChild href="/shop" variant="outline">
-          Continue shopping
+          Keep shopping
         </Button>
-        {user ? (
-          <Button asChild href="/account/orders" variant="ghost">
-            Your orders
-          </Button>
-        ) : null}
       </div>
     </div>
   );

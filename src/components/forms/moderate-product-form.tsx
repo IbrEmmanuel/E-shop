@@ -7,6 +7,7 @@ import {
 } from "@/app/actions/admin";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 
 export function ModerateProductForm({ productId }: { productId: string }) {
@@ -23,6 +24,11 @@ export function ModerateProductForm({ productId }: { productId: string }) {
         <option value="DRAFT">Draft</option>
         <option value="ARCHIVED">Archive</option>
       </Select>
+      <Input
+        name="rejectionReason"
+        placeholder="Reject reason (if rejecting)"
+        className="min-w-[12rem] flex-1"
+      />
       <Button type="submit" size="sm" loading={pending}>
         Apply
       </Button>

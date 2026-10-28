@@ -31,7 +31,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       prisma.product.findMany({
         where: { status: "PUBLISHED", vendor: { status: "ACTIVE" } },
         select: { slug: true, updatedAt: true },
-        take: 5000,
+        take: 50_000,
+        orderBy: { updatedAt: "desc" },
       }),
       prisma.category.findMany({
         where: { isActive: true },

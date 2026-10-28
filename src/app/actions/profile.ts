@@ -49,6 +49,8 @@ export async function updateProfileAction(
     });
 
     revalidatePath("/admin/profile");
+    revalidatePath("/account");
+    revalidatePath("/account/profile");
     return { ok: true, message: "Profile saved." };
   } catch (e) {
     return {
@@ -72,6 +74,7 @@ export async function savePreferencesAction(
       data: { emailAlerts, smsAlerts },
     });
     revalidatePath("/admin/profile");
+    revalidatePath("/account/profile");
     return { ok: true, message: "Preferences saved." };
   } catch (e) {
     return {
@@ -110,6 +113,7 @@ export async function addAddressAction(
       },
     });
     revalidatePath("/admin/profile");
+    revalidatePath("/account/addresses");
     return { ok: true, message: "Address saved." };
   } catch (e) {
     return {
@@ -117,6 +121,20 @@ export async function addAddressAction(
       error: e instanceof Error ? e.message : "Could not save address",
     };
   }
+}
+
+export async function deleteAddressAction(formData: FormData) {
+  const session = await getSessionUser();
+  const user = requireAuth(session);
+  const addressId = String(formData.get("addressId") || "");
+  if (!addressId) return;
+
+  await prisma.address.deleteMany({
+    where: { id: addressId, userId: user.id },
+  });
+
+  revalidatePath("/admin/profile");
+  revalidatePath("/account/addresses");
 }
 
 export async function changePasswordAction(

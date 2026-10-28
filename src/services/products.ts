@@ -56,10 +56,15 @@ export async function listPublishedProducts(
   };
 
   if (input.q) {
+    const q = input.q;
+    // Neon/Postgres supports case-insensitive contains; SQLite does not.
+    const insensitive = process.env.DATABASE_URL?.startsWith("postgres")
+      ? ({ mode: "insensitive" as const })
+      : {};
     where.OR = [
-      { title: { contains: input.q } },
-      { description: { contains: input.q } },
-      { sku: { contains: input.q } },
+      { title: { contains: q, ...insensitive } },
+      { description: { contains: q, ...insensitive } },
+      { sku: { contains: q, ...insensitive } },
     ];
   }
 

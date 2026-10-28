@@ -18,7 +18,7 @@ export default async function VendorBatchesPage() {
         orderBy: { createdAt: "desc" },
         take: 40,
       })
-    : user.role === "ADMIN"
+    : (user.role === "ADMIN" || user.role === "SUPER_ADMIN")
       ? await prisma.importBatch.findMany({
           orderBy: { createdAt: "desc" },
           take: 40,

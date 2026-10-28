@@ -10,13 +10,15 @@ const items = [
   { href: "/shop", label: "Shop", icon: Store },
   { href: "/sell", label: "Sell", icon: Plus },
   { href: "/blog", label: "Blog", icon: Newspaper },
-  { href: "/login", label: "Sign in", icon: User },
+  { href: "/account", label: "Account", icon: User },
 ];
 
 export function MobileNav() {
   const pathname = usePathname();
   const hide =
     pathname.startsWith("/admin") ||
+    pathname.startsWith("/super") ||
+    pathname.startsWith("/vendor") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/register");
 

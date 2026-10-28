@@ -1,7 +1,7 @@
 import type { Order, VendorOrder } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit";
-import { requireAdmin, type SessionUser } from "@/lib/permissions";
+import { requireAuth, type SessionUser } from "@/lib/permissions";
 import type { OrderStatus, VendorOrderStatus } from "@/lib/types";
 import {
   nextVendorOrderAction,
@@ -86,14 +86,15 @@ export async function advanceVendorOrderStatus(opts: {
   vendorOrderId: string;
   user: SessionUser;
   status: VendorOrderStatus;
+  trackingNumber?: string;
 }): Promise<
   | { ok: true; vendorOrder: VendorOrder; order: Order }
   | { ok: false; error: string }
 > {
   try {
-    requireAdmin(opts.user);
+    requireAuth(opts.user);
   } catch {
-    return { ok: false, error: "Admin access required." };
+    return { ok: false, error: "Authentication required." };
   }
 
   const allowed: VendorOrderStatus[] = [
@@ -111,6 +112,15 @@ export async function advanceVendorOrderStatus(opts: {
     include: { order: true, vendor: true },
   });
   if (!existing) return { ok: false, error: "Order not found" };
+
+  if (
+    opts.user.role !== "ADMIN" &&
+    opts.user.role !== "SUPER_ADMIN"
+  ) {
+    if (existing.vendor.userId !== opts.user.id) {
+      return { ok: false, error: "You can only fulfil your own orders." };
+    }
+  }
 
   if (existing.order.status === "PENDING_PAYMENT") {
     return { ok: false, error: "Payment must be approved before fulfillment." };
@@ -134,7 +144,12 @@ export async function advanceVendorOrderStatus(opts: {
   const result = await prisma.$transaction(async (tx) => {
     const vendorOrder = await tx.vendorOrder.update({
       where: { id: existing.id },
-      data: { status: opts.status },
+      data: {
+        status: opts.status,
+        ...(opts.status === "SHIPPED" && opts.trackingNumber
+          ? { trackingNumber: opts.trackingNumber }
+          : {}),
+      },
     });
 
     const siblings = await tx.vendorOrder.findMany({
@@ -174,7 +189,7 @@ export async function advanceVendorOrderStatus(opts: {
         data: {
           orderId: existing.orderId,
           status: "PROCESSING",
-          note: `Admin marked ${existing.vendor.storeName} items as packaged.`,
+          note: `${existing.vendor.storeName} marked items as packaged.`,
         },
       });
     }
@@ -190,8 +205,26 @@ export async function advanceVendorOrderStatus(opts: {
     meta: {
       status: opts.status,
       orderNumber: result.order.orderNumber,
+      trackingNumber: opts.trackingNumber ?? null,
     },
   });
+
+  if (opts.status === "SHIPPED") {
+    const { notifyOrderShipped } = await import("@/services/order-notifications");
+    await notifyOrderShipped({
+      orderId: result.order.id,
+      trackingNumber: opts.trackingNumber ?? result.vendorOrder.trackingNumber,
+      storeName: existing.vendor.storeName,
+    }).catch((e) => console.error("[notify:shipped]", e));
+  }
+
+  // Settle earnings only after the parent order is fully delivered
+  if (result.order.status === "DELIVERED") {
+    const { settleVendorEarnings } = await import("@/services/wallet");
+    await settleVendorEarnings(result.order.id).catch((e) =>
+      console.error("[wallet:settle]", e),
+    );
+  }
 
   return { ok: true, vendorOrder: result.vendorOrder, order: result.order };
 }

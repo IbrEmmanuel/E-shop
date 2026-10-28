@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   const admin = await prisma.user.findUnique({
-    where: { email: "emmanuelibrahim@gmail.com" },
+    where: { email: "emmanuelibrahim430@gmail.com" },
   });
   if (!admin) throw new Error("Owner admin missing");
 

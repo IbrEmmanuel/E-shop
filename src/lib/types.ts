@@ -1,6 +1,6 @@
 /** App-level enums stored as strings in SQLite. */
 
-export type Role = "CUSTOMER" | "VENDOR" | "ADMIN";
+export type Role = "CUSTOMER" | "VENDOR" | "ADMIN" | "SUPER_ADMIN";
 
 export type VendorApplicationStatus =
   | "DRAFT"

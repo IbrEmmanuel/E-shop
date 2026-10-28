@@ -22,15 +22,23 @@ export function parseMoneyToMinor(input: string | number): number {
     if (!Number.isFinite(input)) throw new Error("Invalid money amount");
     return Math.round(input * 100);
   }
-  const cleaned = input.replace(/,/g, "").trim();
-  if (!/^-?\d+(\.\d{1,2})?$/.test(cleaned)) {
+
+  // Accept common user input: ₦5,000 / NGN 5000 / 5000.5 / 15 000
+  let cleaned = input
+    .replace(/₦/g, "")
+    .replace(/\bNGN\b/gi, "")
+    .replace(/[\s,]/g, "")
+    .trim();
+
+  if (cleaned.endsWith(".")) cleaned = cleaned.slice(0, -1);
+
+  if (!/^-?\d+(\.\d+)?$/.test(cleaned)) {
     throw new Error(`Invalid money format: ${input}`);
   }
-  const [whole, frac = ""] = cleaned.split(".");
-  const fracPadded = (frac + "00").slice(0, 2);
-  const sign = whole.startsWith("-") ? -1 : 1;
-  const absWhole = whole.replace("-", "");
-  return sign * (parseInt(absWhole, 10) * 100 + parseInt(fracPadded, 10));
+
+  const num = Number(cleaned);
+  if (!Number.isFinite(num)) throw new Error(`Invalid money format: ${input}`);
+  return Math.round(num * 100);
 }
 
 export function assertNonNegativeMinor(amount: number, label = "amount"): void {

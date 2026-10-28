@@ -5,12 +5,20 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getGuestKey } from "@/lib/guest";
-import { bankTransferAvailable } from "@/lib/payments/settlement";
-import { createOrderFromCart } from "@/services/orders";
+import { siteUrl, paymentsConfigured } from "@/lib/env";
 import { sendEmail } from "@/lib/email";
 import { formatMoney } from "@/lib/money";
-import { getSettlementAccounts, transferNarration } from "@/lib/payments/settlement";
+import { initializePayment } from "@/lib/payments/adapter";
+import {
+  paymentMethodById,
+  type PaymentMethodId,
+} from "@/lib/payments/methods";
+import {
+  bankTransferAvailable,
+  getSettlementAccounts,
+  transferNarration,
+} from "@/lib/payments/settlement";
+import { createOrderFromCart } from "@/services/orders";
 
 const schema = z.object({
   shippingName: z.string().trim().min(1),
@@ -22,6 +30,8 @@ const schema = z.object({
   shippingCountry: z.string().trim().min(2).max(2).default("NG"),
   shippingPhone: z.string().trim().optional().nullable(),
   guestEmail: z.string().email().optional().nullable(),
+  paymentMethod: z.enum(["opay", "uba", "bank", "other_wallet"]),
+  confirmSummary: z.literal("yes"),
 });
 
 export type CheckoutResult =
@@ -33,9 +43,8 @@ export async function placeOrderAction(
   formData: FormData,
 ): Promise<CheckoutResult> {
   const user = await getSessionUser();
-  const guestKey = user ? null : await getGuestKey();
-  if (!user && !guestKey) {
-    return { ok: false, error: "Your cart session expired. Add items again." };
+  if (!user) {
+    redirect("/login?callbackUrl=/checkout");
   }
 
   const parsed = schema.safeParse({
@@ -47,20 +56,31 @@ export async function placeOrderAction(
     shippingPostal: formData.get("shippingPostal") || null,
     shippingCountry: formData.get("shippingCountry") || "NG",
     shippingPhone: formData.get("shippingPhone") || null,
-    guestEmail: formData.get("guestEmail") || user?.email || null,
+    guestEmail: user.email,
+    paymentMethod: formData.get("paymentMethod") || "uba",
+    confirmSummary: formData.get("confirmSummary") || "",
   });
 
   if (!parsed.success) {
-    return { ok: false, error: "Please complete the shipping details." };
+    return {
+      ok: false,
+      error:
+        "Confirm the order summary, choose a payment method, and complete shipping details.",
+    };
   }
 
-  if (!user && !parsed.data.guestEmail) {
-    return { ok: false, error: "Email is required for guest checkout." };
+  const method = paymentMethodById(parsed.data.paymentMethod);
+  if (!method) {
+    return { ok: false, error: "Select a supported payment method." };
   }
 
-  if (!bankTransferAvailable()) {
-    return { ok: false, error: "Bank transfer accounts are not configured." };
+  const useHosted = paymentsConfigured();
+  if (!useHosted && !bankTransferAvailable()) {
+    return { ok: false, error: "Payments are temporarily unavailable." };
   }
+
+  const { expireStaleUnpaidOrders } = await import("@/services/orders");
+  await expireStaleUnpaidOrders(48).catch(() => 0);
 
   const idempotencyKey =
     String(formData.get("idempotencyKey") || "") || randomUUID();
@@ -68,10 +88,18 @@ export async function placeOrderAction(
   let order;
   try {
     order = await createOrderFromCart({
-      ...parsed.data,
+      shippingName: parsed.data.shippingName,
+      shippingLine1: parsed.data.shippingLine1,
+      shippingLine2: parsed.data.shippingLine2,
+      shippingCity: parsed.data.shippingCity,
+      shippingState: parsed.data.shippingState,
+      shippingPostal: parsed.data.shippingPostal,
+      shippingCountry: parsed.data.shippingCountry,
+      shippingPhone: parsed.data.shippingPhone,
+      guestEmail: parsed.data.guestEmail,
       idempotencyKey,
-      userId: user?.id,
-      guestKey,
+      userId: user.id,
+      guestKey: null,
     });
   } catch (e) {
     return {
@@ -80,12 +108,76 @@ export async function placeOrderAction(
     };
   }
 
-  const email = user?.email || parsed.data.guestEmail!;
   const paymentIdempotency = `pay-${order.id}`;
   const existing = await prisma.payment.findUnique({
     where: { idempotencyKey: paymentIdempotency },
   });
 
+  // Hosted PSP checkout when keys are configured
+  if (useHosted) {
+    const reference = `eshop-${order.orderNumber}-${Date.now().toString(36)}`;
+    const init = await initializePayment({
+      amountMinor: order.totalMinor,
+      currency: order.currency,
+      email: user.email,
+      reference,
+      callbackUrl: siteUrl(`/order-confirmation/${order.orderNumber}`),
+      metadata: {
+        type: "order",
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        paymentMethod: method.id,
+      },
+    });
+
+    if (!init.ok) {
+      return { ok: false, error: init.reason };
+    }
+
+    if (!existing) {
+      await prisma.payment.create({
+        data: {
+          orderId: order.id,
+          provider: "paystack",
+          providerRef: init.reference,
+          amountMinor: order.totalMinor,
+          currency: order.currency,
+          status: "REQUIRES_ACTION",
+          idempotencyKey: paymentIdempotency,
+          rawMetaJson: JSON.stringify({
+            method: method.id,
+            channelLabel: method.label,
+            authorizationUrl: init.authorizationUrl,
+          }),
+        },
+      });
+    } else {
+      await prisma.payment.update({
+        where: { id: existing.id },
+        data: {
+          provider: "paystack",
+          providerRef: init.reference,
+          status: "REQUIRES_ACTION",
+          rawMetaJson: JSON.stringify({
+            method: method.id,
+            channelLabel: method.label,
+            authorizationUrl: init.authorizationUrl,
+          }),
+        },
+      });
+    }
+
+    void sendEmail({
+      to: user.email,
+      subject: `Complete payment for ${order.orderNumber}`,
+      html: `<p>Order <strong>${order.orderNumber}</strong> is ready.</p><p>Pay ${formatMoney(order.totalMinor, order.currency)} via ${method.label}.</p><p><a href="${init.authorizationUrl}">Open checkout</a></p>`,
+      text: `Pay ${order.orderNumber} via ${init.authorizationUrl}`,
+    }).catch(() => undefined);
+
+    redirect(init.authorizationUrl);
+  }
+
+  // Settlement transfer path (OPay / UBA / banks) — payment request in DB
   if (!existing) {
     await prisma.payment.create({
       data: {
@@ -96,14 +188,18 @@ export async function placeOrderAction(
         status: "PENDING",
         idempotencyKey: paymentIdempotency,
         rawMetaJson: JSON.stringify({
-          method: "bank_transfer",
-          channels: ["OPay", "Moniepoint", "PalmPay", "UBA", "bank"],
+          method: method.id as PaymentMethodId,
+          channelLabel: method.label,
+          preferredAccountId: method.preferredAccountId,
+          channels: method.apps,
         }),
       },
     });
   }
 
   const accounts = getSettlementAccounts();
+  const preferred =
+    accounts.find((a) => a.id === method.preferredAccountId) ?? accounts[0];
   const accountLines = accounts
     .map(
       (a) =>
@@ -112,17 +208,30 @@ export async function placeOrderAction(
     .join("");
 
   void sendEmail({
-    to: email,
+    to: user.email,
     subject: `Pay for order ${order.orderNumber}`,
     html: `
       <p>Thanks for your order <strong>${order.orderNumber}</strong>.</p>
       <p>Amount due: <strong>${formatMoney(order.totalMinor, order.currency)}</strong></p>
-      <p>Transfer from OPay, Moniepoint, PalmPay, or any bank to:</p>
+      <p>Selected method: <strong>${method.label}</strong>${
+        preferred
+          ? ` — prefer <strong>${preferred.bank}</strong> ${preferred.accountNumber}`
+          : ""
+      }</p>
+      <p>Transfer to:</p>
       <ul>${accountLines}</ul>
-      <p>Use narration / remark: <strong>${transferNarration(order.orderNumber)}</strong></p>
+      <p>Narration: <strong>${transferNarration(order.orderNumber)}</strong></p>
+      <p>We confirm the order only after payment is verified.</p>
     `,
-    text: `Pay ${formatMoney(order.totalMinor, order.currency)} for ${order.orderNumber}. Narration: ${transferNarration(order.orderNumber)}`,
+    text: `Pay ${formatMoney(order.totalMinor, order.currency)} for ${order.orderNumber} via ${method.label}. Narration: ${transferNarration(order.orderNumber)}`,
   }).catch(() => undefined);
 
-  redirect(`/order-confirmation/${order.orderNumber}?pay=bank`);
+  const qs = new URLSearchParams({
+    pay: "bank",
+    method: method.id,
+  });
+  if (method.preferredAccountId) {
+    qs.set("account", method.preferredAccountId);
+  }
+  redirect(`/order-confirmation/${order.orderNumber}?${qs.toString()}`);
 }

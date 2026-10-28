@@ -58,13 +58,20 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
   );
 }
 
-export function RegisterForm({ referralCode }: { referralCode?: string }) {
+export function RegisterForm({
+  referralCode,
+  callbackUrl,
+}: {
+  referralCode?: string;
+  callbackUrl?: string;
+}) {
   const [state, action, pending] = useActionState(
     registerAction,
     null as ActionResult | null,
   );
   return (
     <form action={action} className="auth-form space-y-5">
+      <input type="hidden" name="callbackUrl" value={callbackUrl || "/"} />
       {referralCode ? (
         <input type="hidden" name="ref" value={referralCode} />
       ) : null}
@@ -82,6 +89,16 @@ export function RegisterForm({ referralCode }: { referralCode?: string }) {
           required
           autoComplete="email"
           placeholder="you@example.com"
+        />
+      </div>
+      <div>
+        <Label htmlFor="phone">Phone (for sellers)</Label>
+        <Input
+          id="phone"
+          name="phone"
+          type="tel"
+          autoComplete="tel"
+          placeholder="080…"
         />
       </div>
       <div>
@@ -106,7 +123,12 @@ export function RegisterForm({ referralCode }: { referralCode?: string }) {
         >
           Create account
         </Button>
-        <Button asChild href="/login" variant="outline" size="lg">
+        <Button
+          asChild
+          href={`/login?callbackUrl=${encodeURIComponent(callbackUrl || "/")}`}
+          variant="outline"
+          size="lg"
+        >
           Sign in
         </Button>
       </div>

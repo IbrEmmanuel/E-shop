@@ -50,9 +50,9 @@ export function siteUrl(path = ""): string {
   return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
-/** @deprecated Paystack removed — bank/fintech transfer is the payment path. */
+/** True when a PSP secret is present (Paystack hosted checkout / verify). */
 export function paymentsConfigured(): boolean {
-  return false;
+  return Boolean(process.env.PAYMENT_SECRET_KEY?.trim());
 }
 
 /** Local outbox always on; Resend used when EMAIL_API_KEY is set. */

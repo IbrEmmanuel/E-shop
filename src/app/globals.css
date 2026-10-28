@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
-  Brand: clean glass editorial · Fraunces + Inter · soft radii · orange #ff7600
+  Brand: clean glass editorial, Fraunces + Inter, soft radii, orange #ff7600
 */
 :root {
   /* Brand primitives */
@@ -149,7 +149,7 @@
   --chart-4: var(--color-orange-dark);
 }
 
-/* Dark — deep glass · orange glow */
+/* Dark â€” deep glass Â· orange glow */
 [data-theme="dark"] {
   color-scheme: dark;
   --bg-primary: #0e0c0b;
@@ -394,7 +394,7 @@ pre {
   overflow-x: auto;
 }
 
-/* Shell surfaces — storefront + admin + mobile nav */
+/* Shell surfaces â€” storefront + admin + mobile nav */
 .surface-glass,
 header.sticky,
 footer,
@@ -474,7 +474,7 @@ mark {
   background: color-mix(in oklab, var(--color-primary) 10%, transparent);
 }
 
-/* Shared section rhythm — landing + admin (one justified column) */
+/* Shared section rhythm â€” landing + admin (one justified column) */
 .app-section {
   width: 100%;
 }
@@ -520,7 +520,7 @@ mark {
   margin-inline-start: auto;
 }
 
-/* —— Admin console shell —— */
+/* â€”â€” Admin console shell â€”â€” */
 .admin-shell {
   display: grid;
   min-height: 100dvh;
@@ -1327,7 +1327,7 @@ mark {
   }
 }
 
-/* Mobile: snappier admin — less blur / motion / paint cost */
+/* Mobile: snappier admin â€” less blur / motion / paint cost */
 @media (max-width: 767px) {
   .admin-sidebar__glow,
   .admin-hero__glow {
@@ -1677,47 +1677,111 @@ mark {
   -webkit-backdrop-filter: blur(var(--glass-blur));
 }
 
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.875rem 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .product-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.75rem 1.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .product-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2rem 1.5rem;
+  }
+}
+
 .product-card {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-sm), var(--glass-highlight);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  transition:
-    transform var(--transition-speed) var(--transition-bounce),
-    box-shadow var(--transition-speed) var(--transition-bounce),
-    border-color var(--transition-speed) var(--transition-bounce);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  transition: transform 280ms var(--ease-standard, ease);
 }
 
 .product-card:hover {
-  transform: translateY(-3px);
-  border-color: color-mix(in oklab, var(--color-primary) 28%, var(--glass-border));
-  box-shadow: var(--shadow-md), var(--glass-highlight);
+  transform: translateY(-2px);
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .product-card__media {
   position: relative;
   overflow: hidden;
-  aspect-ratio: 4 / 5;
-  background: color-mix(in oklab, var(--color-beige) 70%, transparent);
-  border-radius: 0;
+  aspect-ratio: 3 / 4;
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in oklab, var(--color-beige, #ece8e0) 88%, white) 0%,
+      color-mix(in oklab, var(--color-beige, #e4dfd6) 70%, transparent) 100%
+    );
+  border-radius: 1rem;
+}
+
+.product-card__photo {
+  object-fit: cover;
+  object-position: center;
+}
+
+@media (min-width: 768px) {
+  .product-card__media {
+    border-radius: 1.125rem;
+  }
 }
 
 .product-card__body {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-4);
+  gap: 0.35rem;
+  padding: 0.7rem 0.15rem 0;
+}
+
+@media (max-width: 767px) {
+  .product-card__body {
+    gap: 0.25rem;
+    padding-top: 0.55rem;
+  }
+
+  .product-card__vendor {
+    display: none;
+  }
+
+  .product-card__title {
+    font-size: 0.8125rem;
+    line-height: 1.3;
+    letter-spacing: -0.015em;
+  }
+
+  .product-card__price {
+    font-size: 0.8125rem;
+  }
+
+  .product-card__actions {
+    display: none;
+  }
+
+  .product-card__add {
+    width: 2.125rem !important;
+    min-width: 2.125rem !important;
+    height: 2.125rem !important;
+  }
 }
 
 .product-card__vendor {
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   font-weight: 500;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--color-soft-muted);
 }
@@ -1938,9 +2002,461 @@ mark {
   }
 }
 
+.home-hero__backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--color-bg);
+}
+
+/* Login-page atmosphere + particle orb shadow as hero backdrop */
+.home-hero__atmosphere {
+  position: absolute;
+  inset: 0;
+  background: var(--color-light);
+}
+
+.home-hero__atmosphere::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse 70% 55% at 85% 8%,
+      var(--color-orange-light),
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse 55% 45% at 8% 92%,
+      color-mix(in oklab, var(--color-primary) 14%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(180deg, var(--color-light) 0%, var(--color-beige) 100%);
+}
+
+.home-hero__glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(6px);
+}
+
+.home-hero__glow--a {
+  width: min(72vw, 36rem);
+  height: min(72vw, 36rem);
+  top: -24%;
+  right: -16%;
+  background: radial-gradient(
+    circle,
+    color-mix(in oklab, var(--color-primary) 42%, transparent) 0%,
+    transparent 68%
+  );
+  animation: auth-orb-drift 16s var(--ease-standard) infinite alternate;
+}
+
+.home-hero__glow--b {
+  width: min(52vw, 24rem);
+  height: min(52vw, 24rem);
+  bottom: -14%;
+  left: -18%;
+  background: radial-gradient(
+    circle,
+    color-mix(in oklab, var(--color-orange-dark) 26%, transparent) 0%,
+    transparent 70%
+  );
+  animation: auth-orb-drift 20s var(--ease-standard) infinite alternate-reverse;
+}
+
+.home-hero__glow--c {
+  width: min(34vw, 15rem);
+  height: min(34vw, 15rem);
+  top: 42%;
+  left: 52%;
+  background: radial-gradient(
+    circle,
+    color-mix(in oklab, #ffffff 60%, transparent) 0%,
+    transparent 72%
+  );
+  animation: auth-orb-drift 22s var(--ease-standard) infinite alternate;
+}
+
+.home-hero__orb-stage {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  right: max(-6%, -3rem);
+  width: min(70vw, 36rem);
+  aspect-ratio: 1;
+  transform: translateY(-46%);
+  display: grid;
+  place-items: center;
+}
+
+.home-hero__orb {
+  width: 100% !important;
+  max-width: none;
+  pointer-events: auto;
+}
+
+.auth-orb--hero .auth-orb__shadow {
+  display: none; /* floor shadow handled by home-hero__floor-shadow */
+}
+
+.home-hero__floor-shadow {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 4%;
+  height: 28%;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    color-mix(in oklab, var(--color-orange-dark) 34%, transparent) 0%,
+    rgb(47 40 30 / 28%) 38%,
+    transparent 74%
+  );
+  filter: blur(16px);
+  pointer-events: none;
+  animation: auth-glow-pulse 5s var(--ease-standard) infinite;
+  z-index: 0;
+}
+
+[data-theme="dark"] .home-hero__floor-shadow {
+  background: radial-gradient(
+    ellipse at center,
+    rgb(0 0 0 / 62%) 0%,
+    transparent 74%
+  );
+  filter: blur(12px);
+}
+
+@media (min-width: 900px) {
+  .home-hero__orb-stage {
+    right: 4%;
+    width: min(48vw, 40rem);
+  }
+}
+
+@media (max-width: 700px) {
+  .home-hero__orb-stage {
+    top: auto;
+    bottom: -4%;
+    right: -18%;
+    width: min(92vw, 26rem);
+    transform: none;
+    opacity: 0.7;
+  }
+}
+
+[data-theme="dark"] .home-hero__atmosphere {
+  background: #0c0a09;
+}
+
+[data-theme="dark"] .home-hero__atmosphere::before {
+  opacity: 0.35;
+  background:
+    radial-gradient(
+      ellipse 70% 55% at 85% 8%,
+      color-mix(in oklab, var(--color-primary) 28%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse 55% 45% at 8% 92%,
+      color-mix(in oklab, var(--color-primary) 12%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(180deg, #0c0a09 0%, #16120f 100%);
+}
+
 .home-hero__image {
-  animation: home-hero-zoom 8s var(--ease-standard) both;
+  opacity: 0.18;
+  filter: saturate(0.7) contrast(1.05);
+  animation: home-hero-zoom 14s var(--ease-standard) both;
   will-change: transform;
+}
+
+[data-theme="dark"] .home-hero__image {
+  opacity: 0.12;
+}
+
+/* Legacy Africa map styles kept for other surfaces */
+.home-hero__africa {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  opacity: 1;
+}
+
+.africa-map-3d {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.africa-map-3d__aura {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(2px);
+}
+
+.africa-map-3d__aura--a {
+  width: min(92vw, 920px);
+  height: min(92vw, 920px);
+  background: radial-gradient(
+    circle,
+    color-mix(in oklab, var(--color-primary) 28%, transparent) 0%,
+    transparent 68%
+  );
+  animation: africa-aura-pulse 9s var(--ease-standard) infinite;
+}
+
+.africa-map-3d__aura--b {
+  width: min(70vw, 680px);
+  height: min(70vw, 680px);
+  border: 1px solid color-mix(in oklab, var(--color-primary) 28%, transparent);
+  animation: africa-aura-spin 28s linear infinite;
+}
+
+.africa-map-3d__aura--c {
+  width: min(52vw, 520px);
+  height: min(52vw, 520px);
+  border: 1px dashed color-mix(in oklab, var(--color-primary) 22%, transparent);
+  animation: africa-aura-spin 38s linear infinite reverse;
+}
+
+.africa-map-3d__stage {
+  position: relative;
+  width: min(118vw, 860px);
+  aspect-ratio: 320 / 380;
+  perspective: 1400px;
+  perspective-origin: 55% 42%;
+  margin-left: 12%;
+}
+
+@media (min-width: 768px) {
+  .africa-map-3d__stage {
+    width: min(78vw, 920px);
+    margin-left: 18%;
+  }
+}
+
+@media (min-width: 1100px) {
+  .africa-map-3d__stage {
+    width: min(62vw, 980px);
+    margin-left: 22%;
+  }
+}
+
+.africa-map-3d__shadow {
+  position: absolute;
+  left: 8%;
+  right: 4%;
+  bottom: -2%;
+  height: 22%;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgb(20 12 6 / 55%) 0%,
+    rgb(20 12 6 / 24%) 45%,
+    transparent 72%
+  );
+  filter: blur(18px);
+  transform: rotateX(72deg) scaleX(1.12);
+  transform-origin: center;
+  animation: africa-shadow-breathe 6.5s var(--ease-standard) infinite;
+}
+
+[data-theme="dark"] .africa-map-3d__shadow {
+  background: radial-gradient(
+    ellipse at center,
+    rgb(0 0 0 / 78%) 0%,
+    rgb(0 0 0 / 38%) 48%,
+    transparent 74%
+  );
+}
+
+.africa-map-3d__orbit {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  animation: africa-float 10s var(--ease-standard) infinite;
+}
+
+.africa-map-3d__tilt {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateX(12deg) rotateY(-22deg) rotateZ(3deg);
+  animation: africa-tilt 16s var(--ease-standard) infinite alternate;
+}
+
+.africa-map-3d__plate,
+.africa-map-3d__face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transform-style: preserve-3d;
+}
+
+.africa-map-3d__plate path {
+  fill: #8a3d00;
+}
+
+.africa-map-3d__plate--1 {
+  transform: translateZ(-8px);
+  opacity: 0.95;
+}
+.africa-map-3d__plate--1 path {
+  fill: #b35200;
+}
+
+.africa-map-3d__plate--2 {
+  transform: translateZ(-16px);
+  opacity: 0.9;
+}
+.africa-map-3d__plate--2 path {
+  fill: #8a3d00;
+}
+
+.africa-map-3d__plate--3 {
+  transform: translateZ(-24px);
+  opacity: 0.82;
+}
+.africa-map-3d__plate--3 path {
+  fill: #6a2e00;
+}
+
+.africa-map-3d__plate--4 {
+  transform: translateZ(-34px);
+  opacity: 0.72;
+}
+.africa-map-3d__plate--4 path {
+  fill: #4a2000;
+}
+
+.africa-map-3d__plate--5 {
+  transform: translateZ(-46px);
+  opacity: 0.55;
+  filter: blur(0.6px);
+}
+.africa-map-3d__plate--5 path {
+  fill: #2e1400;
+}
+
+.africa-map-3d__face {
+  transform: translateZ(0);
+  filter: drop-shadow(0 28px 48px rgb(255 118 0 / 32%))
+    drop-shadow(0 8px 18px rgb(20 10 4 / 40%));
+}
+
+.africa-map-3d__glint {
+  animation: africa-glint 7s var(--ease-standard) infinite;
+  transform-origin: center;
+}
+
+.africa-map-3d__sweep {
+  animation: africa-sweep 7.5s var(--ease-standard) infinite;
+}
+
+@keyframes africa-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -18px, 12px) scale(1.015);
+  }
+}
+
+@keyframes africa-tilt {
+  0% {
+    transform: rotateX(10deg) rotateY(-26deg) rotateZ(2deg);
+  }
+  100% {
+    transform: rotateX(16deg) rotateY(-14deg) rotateZ(5deg);
+  }
+}
+
+@keyframes africa-shadow-breathe {
+  0%,
+  100% {
+    opacity: 0.65;
+    transform: rotateX(72deg) scaleX(1.06) scaleY(1);
+  }
+  50% {
+    opacity: 0.95;
+    transform: rotateX(72deg) scaleX(1.18) scaleY(1.1);
+  }
+}
+
+@keyframes africa-glint {
+  0%,
+  100% {
+    opacity: 0.06;
+    transform: translate(0, 0);
+  }
+  50% {
+    opacity: 0.16;
+    transform: translate(10px, -6px);
+  }
+}
+
+@keyframes africa-sweep {
+  0% {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(360px);
+    opacity: 0;
+  }
+}
+
+@keyframes africa-aura-pulse {
+  0%,
+  100% {
+    transform: scale(0.92);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.9;
+  }
+}
+
+@keyframes africa-aura-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 640px) {
+  .africa-map-3d__stage {
+    width: min(135vw, 520px);
+    margin-left: 8%;
+    opacity: 0.88;
+  }
+
+  .africa-map-3d__aura--b,
+  .africa-map-3d__aura--c {
+    opacity: 0.55;
+  }
 }
 
 .home-hero__brand-field,
@@ -1980,33 +2496,46 @@ mark {
 .home-hero__wash {
   position: absolute;
   inset: 0;
+  z-index: 2;
   background:
     linear-gradient(
       105deg,
-      color-mix(in oklab, var(--color-bg) 94%, transparent) 0%,
-      color-mix(in oklab, var(--color-bg) 78%, transparent) 38%,
-      color-mix(in oklab, var(--color-bg) 28%, transparent) 72%,
-      color-mix(in oklab, var(--color-bg) 12%, transparent) 100%
+      color-mix(in oklab, var(--color-bg) 82%, transparent) 0%,
+      color-mix(in oklab, var(--color-bg) 48%, transparent) 32%,
+      color-mix(in oklab, var(--color-bg) 12%, transparent) 58%,
+      transparent 100%
     ),
     linear-gradient(
       to top,
-      color-mix(in oklab, var(--color-bg) 55%, transparent) 0%,
+      color-mix(in oklab, var(--color-bg) 42%, transparent) 0%,
       transparent 42%
     );
+  pointer-events: none;
 }
 
 .home-hero__grain {
   position: absolute;
   inset: 0;
-  opacity: 0.18;
+  z-index: 3;
+  opacity: 0.2;
   pointer-events: none;
-  mix-blend-mode: soft-light;
+  mix-blend-mode: multiply;
   background-image: radial-gradient(
     circle at 1px 1px,
-    rgb(235 219 178 / 18%) 1px,
+    rgb(47 47 47 / 12%) 1px,
     transparent 0
   );
   background-size: 3px 3px;
+}
+
+[data-theme="dark"] .home-hero__grain {
+  opacity: 0.12;
+  mix-blend-mode: soft-light;
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    rgb(235 219 178 / 14%) 1px,
+    transparent 0
+  );
 }
 
 .home-reveal {
@@ -2064,8 +2593,20 @@ mark {
 
 @media (prefers-reduced-motion: reduce) {
   .home-hero__image,
-  .home-reveal {
+  .home-reveal,
+  .africa-map-3d__orbit,
+  .africa-map-3d__tilt,
+  .africa-map-3d__shadow,
+  .africa-map-3d__glint,
+  .africa-map-3d__sweep,
+  .africa-map-3d__aura--a,
+  .africa-map-3d__aura--b,
+  .africa-map-3d__aura--c {
     animation: none !important;
+  }
+
+  .africa-map-3d__tilt {
+    transform: rotateX(12deg) rotateY(-18deg) rotateZ(3deg);
   }
 }
 
@@ -2143,7 +2684,7 @@ mark {
   box-shadow: var(--shadow-md);
 }
 
-/* Theme toggle icons — driven by html[data-theme], no hydration mismatch */
+/* Theme toggle icons â€” driven by html[data-theme], no hydration mismatch */
 .theme-icon-sun {
   display: none;
 }
@@ -2157,7 +2698,7 @@ mark {
   display: none;
 }
 
-/* —— Auth screens (login / register / forgot) —— */
+/* â€”â€” Auth screens (login / register / forgot) â€”â€” */
 .auth-screen {
   position: relative;
   min-height: 100dvh;
@@ -2333,7 +2874,7 @@ mark {
   color: var(--text-muted);
 }
 
-/* Elevated login surface — soft shadow + motion */
+/* Elevated login surface â€” soft shadow + motion */
 .auth-card {
   position: relative;
   width: 100%;
@@ -2563,7 +3104,7 @@ mark {
   background: var(--bg-secondary);
 }
 
-/* —— Cinematic 3D login (particle orb) —— */
+/* â€”â€” Cinematic 3D login (particle orb) â€”â€” */
 .auth-screen:has(.auth-cinematic) {
   background: var(--color-bg);
   color: var(--color-text);
@@ -2866,4 +3407,127 @@ mark {
   .auth-orb__shadow {
     animation: none !important;
   }
+}
+
+/* Checkout / payment sheet (lean, bank-transfer style) */
+.checkout-form {
+  max-width: 36rem;
+}
+
+.checkout-form__totals {
+  padding-top: 0.25rem;
+}
+
+.checkout-summary {
+  padding-top: 0.25rem;
+}
+
+.pay-sheet__kicker {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.pay-sheet__amount {
+  margin-top: 0.35rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 4vw, 2.35rem);
+  font-weight: 560;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--color-text);
+}
+
+.pay-sheet__tab {
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.85rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.pay-sheet__tab:hover {
+  border-color: color-mix(in oklab, var(--color-text) 28%, var(--color-border));
+  color: var(--color-text);
+}
+
+.pay-sheet__tab--on {
+  border-color: var(--color-text);
+  color: var(--color-text);
+  background: color-mix(in oklab, var(--color-text) 6%, transparent);
+}
+
+.pay-sheet__details {
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.pay-sheet__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.pay-sheet__row:last-child {
+  border-bottom: none;
+}
+
+.pay-sheet__label {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+}
+
+.pay-sheet__value {
+  margin-top: 0.15rem;
+  font-size: 0.9375rem;
+  font-weight: 550;
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+.pay-sheet__copy {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.35rem 0.15rem;
+}
+
+.pay-sheet__copy:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.pay-sheet__proof {
+  max-width: 28rem;
+}
+
+.pay-sheet__file {
+  display: block;
+  width: 100%;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.pay-sheet__file::file-selector-button {
+  margin-right: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
 }

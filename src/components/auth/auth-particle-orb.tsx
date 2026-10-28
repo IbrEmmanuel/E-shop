@@ -15,9 +15,12 @@ type Particle = {
 export function AuthParticleOrb({
   label,
   className,
+  variant = "auth",
 }: {
   label: string;
   className?: string;
+  /** `hero` = backdrop-only (no brand monogram; page owns the name). */
+  variant?: "auth" | "hero";
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -212,12 +215,22 @@ export function AuthParticleOrb({
   const monogram = label.trim().charAt(0).toUpperCase() || "E";
 
   return (
-    <div ref={wrapRef} className={cn("auth-orb", className)} aria-hidden>
+    <div
+      ref={wrapRef}
+      className={cn(
+        "auth-orb",
+        variant === "hero" && "auth-orb--hero",
+        className,
+      )}
+      aria-hidden
+    >
       <canvas ref={canvasRef} className="auth-orb__canvas" />
-      <div className="auth-orb__core">
-        <span className="auth-orb__mark">{monogram}</span>
-        <span className="auth-orb__name">{label}</span>
-      </div>
+      {variant === "auth" ? (
+        <div className="auth-orb__core">
+          <span className="auth-orb__mark">{monogram}</span>
+          <span className="auth-orb__name">{label}</span>
+        </div>
+      ) : null}
       <div className="auth-orb__shadow" />
     </div>
   );

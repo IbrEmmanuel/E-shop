@@ -12,6 +12,7 @@ import {
   estimateDeliveryDate,
   quoteDelivery,
 } from "@/lib/shipping";
+import { clawbackVendorEarnings } from "@/services/wallet";
 
 const shippingSchema = z.object({
   shippingName: z.string().trim().min(1).max(200),
@@ -113,6 +114,7 @@ export async function createOrderFromCart(
       // Re-check stock and reserve inside the transaction
       type LineSnap = {
         productId: string;
+        variantId: string | null;
         vendorId: string;
         titleSnapshot: string;
         skuSnapshot: string;
@@ -179,6 +181,7 @@ export async function createOrderFromCart(
         const lineTotalMinor = unitPriceMinor * item.quantity;
         lineSnaps.push({
           productId: product.id,
+          variantId: item.variantId ?? null,
           vendorId: product.vendorId,
           titleSnapshot: product.title,
           skuSnapshot,
@@ -246,6 +249,7 @@ export async function createOrderFromCart(
               orderId: created.id,
               vendorOrderId: vendorOrder.id,
               productId: line.productId,
+              variantId: line.variantId,
               vendorId: line.vendorId,
               titleSnapshot: line.titleSnapshot,
               skuSnapshot: line.skuSnapshot,
@@ -365,11 +369,17 @@ export async function markOrderPaidFromProvider(opts: {
     meta: { providerRef: verification.reference },
   });
 
+  const { notifyOrderPaid } = await import("@/services/order-notifications");
+  await notifyOrderPaid(updated.id).catch((e) =>
+    console.error("[notify:paid]", e),
+  );
+
   return { ok: true, order: updated };
 }
 
 /**
  * Convert reserved stock into sold inventory and mark order + payment paid.
+ * Idempotent: concurrent callers cannot double-commit stock.
  */
 async function finalizeOrderPaid(opts: {
   paymentId: string;
@@ -379,15 +389,29 @@ async function finalizeOrderPaid(opts: {
   note: string;
 }): Promise<Order> {
   return prisma.$transaction(async (tx) => {
-    await tx.payment.update({
-      where: { id: opts.paymentId },
+    const locked = await tx.payment.updateMany({
+      where: {
+        id: opts.paymentId,
+        status: { not: "SUCCEEDED" },
+      },
       data: {
         status: "SUCCEEDED" satisfies PaymentStatus,
         ...(opts.providerRef ? { providerRef: opts.providerRef } : {}),
         paidAt: new Date(),
         rawMetaJson: opts.rawMeta ? JSON.stringify(opts.rawMeta) : undefined,
+        investigationStatus: null,
+        investigationNote: null,
       },
     });
+
+    if (locked.count === 0) {
+      return tx.order.findUniqueOrThrow({ where: { id: opts.orderId } });
+    }
+
+    const alreadyPaid = await tx.order.findFirst({
+      where: { id: opts.orderId, status: "PAID" },
+    });
+    if (alreadyPaid) return alreadyPaid;
 
     const existingOrder = await tx.order.findUniqueOrThrow({
       where: { id: opts.orderId },
@@ -428,22 +452,28 @@ async function finalizeOrderPaid(opts: {
 
     for (const item of items) {
       if (!item.productId) continue;
-      const product = await tx.product.findUnique({
-        where: { id: item.productId },
-      });
-      if (!product) continue;
 
-      await tx.product.update({
-        where: { id: product.id },
-        data: {
-          inventoryQty: { decrement: item.quantity },
-          reservedQty: { decrement: item.quantity },
-        },
-      });
+      if (item.variantId) {
+        await tx.productVariant.update({
+          where: { id: item.variantId },
+          data: {
+            inventoryQty: { decrement: item.quantity },
+            reservedQty: { decrement: item.quantity },
+          },
+        });
+      } else {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: {
+            inventoryQty: { decrement: item.quantity },
+            reservedQty: { decrement: item.quantity },
+          },
+        });
+      }
 
       await tx.inventoryMovement.create({
         data: {
-          productId: product.id,
+          productId: item.productId,
           delta: -item.quantity,
           reason: "SALE",
           referenceId: order.id,
@@ -453,6 +483,129 @@ async function finalizeOrderPaid(opts: {
 
     return order;
   });
+}
+
+/** Release reserved stock for a pending unpaid order (cancel / expire). */
+export async function releaseOrderReservations(
+  orderId: string,
+  reason: "CANCEL" | "EXPIRE" = "CANCEL",
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      include: { items: true },
+    });
+    if (!order || order.status !== "PENDING_PAYMENT") return;
+
+    for (const item of order.items) {
+      if (!item.productId) continue;
+      if (item.variantId) {
+        await tx.productVariant.update({
+          where: { id: item.variantId },
+          data: { reservedQty: { decrement: item.quantity } },
+        });
+      } else {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { reservedQty: { decrement: item.quantity } },
+        });
+      }
+      await tx.inventoryMovement.create({
+        data: {
+          productId: item.productId,
+          delta: 0,
+          reason: reason === "EXPIRE" ? "RESERVE_EXPIRE" : "RESERVE_RELEASE",
+          referenceId: order.id,
+        },
+      });
+    }
+  });
+}
+
+/**
+ * Cancel an unpaid order and release stock reservations.
+ */
+export async function cancelUnpaidOrder(opts: {
+  orderId: string;
+  actorId?: string | null;
+  note?: string;
+  asExpire?: boolean;
+}): Promise<{ ok: true; order: Order } | { ok: false; error: string }> {
+  const order = await prisma.order.findUnique({
+    where: { id: opts.orderId },
+    include: { payments: { take: 1, orderBy: { createdAt: "desc" } } },
+  });
+  if (!order) return { ok: false, error: "Order not found" };
+  if (order.status !== "PENDING_PAYMENT") {
+    return { ok: false, error: "Only unpaid orders can be cancelled this way." };
+  }
+
+  await releaseOrderReservations(
+    order.id,
+    opts.asExpire ? "EXPIRE" : "CANCEL",
+  );
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const next = await tx.order.update({
+      where: { id: order.id },
+      data: { status: "CANCELLED" satisfies OrderStatus },
+    });
+    await tx.vendorOrder.updateMany({
+      where: { orderId: order.id },
+      data: { status: "CANCELLED" },
+    });
+    if (order.payments[0] && order.payments[0].status !== "SUCCEEDED") {
+      await tx.payment.update({
+        where: { id: order.payments[0].id },
+        data: { status: "FAILED" satisfies PaymentStatus },
+      });
+    }
+    await tx.orderStatusHistory.create({
+      data: {
+        orderId: order.id,
+        status: "CANCELLED",
+        note:
+          opts.note?.trim() ||
+          (opts.asExpire
+            ? "Unpaid order expired; stock reservation released."
+            : "Order cancelled; stock reservation released."),
+      },
+    });
+    return next;
+  });
+
+  await writeAuditLog({
+    actorId: opts.actorId ?? null,
+    action: opts.asExpire ? "order.expired" : "order.cancelled",
+    entityType: "Order",
+    entityId: updated.id,
+    meta: { orderNumber: updated.orderNumber },
+  });
+
+  return { ok: true, order: updated };
+}
+
+/** Expire unpaid orders older than `hours` (default 48) and release stock. */
+export async function expireStaleUnpaidOrders(hours = 48): Promise<number> {
+  const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
+  const stale = await prisma.order.findMany({
+    where: {
+      status: "PENDING_PAYMENT",
+      createdAt: { lt: cutoff },
+    },
+    select: { id: true },
+    take: 100,
+  });
+  let n = 0;
+  for (const row of stale) {
+    const r = await cancelUnpaidOrder({
+      orderId: row.id,
+      asExpire: true,
+      note: `Auto-expired after ${hours}h without payment.`,
+    });
+    if (r.ok) n += 1;
+  }
+  return n;
 }
 
 /**
@@ -603,6 +756,20 @@ export async function advanceOrderFulfillment(opts: {
     meta: { status: opts.status },
   });
 
+  if (opts.status === "SHIPPED") {
+    const { notifyOrderShipped } = await import("@/services/order-notifications");
+    await notifyOrderShipped({ orderId: updated.id }).catch((e) =>
+      console.error("[notify:shipped]", e),
+    );
+  }
+
+  if (opts.status === "DELIVERED") {
+    const { settleVendorEarnings } = await import("@/services/wallet");
+    await settleVendorEarnings(updated.id).catch((e) =>
+      console.error("[wallet:settle]", e),
+    );
+  }
+
   return { ok: true, order: updated };
 }
 
@@ -707,12 +874,22 @@ export function buildOrderTracking(order: {
 
 /**
  * Admin confirms a direct bank / fintech transfer landed.
+ * Validates amount/currency/reference against the payment record; mismatches
+ * are flagged for investigation instead of marking paid.
  */
 export async function confirmBankTransferPayment(opts: {
   orderId: string;
   adminUserId: string;
   note?: string;
-}): Promise<{ ok: true; order: Order } | { ok: false; error: string }> {
+  /** Amount admin verified on the statement (minor units). Must match payment. */
+  verifiedAmountMinor?: number;
+  /** Transfer reference from statement / proof. */
+  verifiedTransferRef?: string;
+  currency?: string;
+}): Promise<
+  | { ok: true; order: Order }
+  | { ok: false; error: string; investigation?: true }
+> {
   const order = await prisma.order.findUnique({
     where: { id: opts.orderId },
     include: { payments: { orderBy: { createdAt: "desc" }, take: 1 } },
@@ -732,15 +909,79 @@ export async function confirmBankTransferPayment(opts: {
     }
   }
 
+  const reportedRef = String(previousMeta.transferRef || "").trim();
+  const verifiedAmount =
+    opts.verifiedAmountMinor ?? payment.amountMinor;
+  const verifiedCurrency = (
+    opts.currency ||
+    payment.currency ||
+    order.currency
+  ).toUpperCase();
+  const verifiedRef = (
+    opts.verifiedTransferRef ||
+    reportedRef ||
+    ""
+  ).trim();
+
+  const { verifyBankTransferOnServer } = await import(
+    "@/lib/payments/verify-transfer"
+  );
+  const verification = verifyBankTransferOnServer({
+    expectedAmountMinor: payment.amountMinor,
+    expectedCurrency: payment.currency,
+    orderTotalMinor: order.totalMinor,
+    reportedTransferRef: reportedRef,
+    verifiedAmountMinor: verifiedAmount,
+    verifiedCurrency,
+    verifiedTransferRef: verifiedRef,
+  });
+  const mismatches = verification.ok ? [] : verification.mismatches;
+
+  if (mismatches.length > 0) {
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        investigationStatus: "OPEN",
+        investigationNote: mismatches.join("; "),
+        rawMetaJson: JSON.stringify({
+          ...previousMeta,
+          investigation: {
+            mismatches,
+            verifiedAmount,
+            verifiedCurrency,
+            verifiedRef,
+            flaggedBy: opts.adminUserId,
+            flaggedAt: new Date().toISOString(),
+          },
+        }),
+      },
+    });
+    await writeAuditLog({
+      actorId: opts.adminUserId,
+      action: "payment.investigation.opened",
+      entityType: "Payment",
+      entityId: payment.id,
+      meta: { orderNumber: order.orderNumber, mismatches },
+    });
+    return {
+      ok: false,
+      error: `Payment flagged for investigation: ${mismatches.join("; ")}`,
+      investigation: true,
+    };
+  }
+
   const updated = await finalizeOrderPaid({
     paymentId: payment.id,
     orderId: order.id,
-    providerRef: payment.providerRef || payment.idempotencyKey,
+    providerRef: verifiedRef || payment.providerRef || payment.idempotencyKey,
     rawMeta: {
       ...previousMeta,
       confirmedBy: opts.adminUserId,
       confirmedAt: new Date().toISOString(),
       adminNote: opts.note || null,
+      verifiedAmount,
+      verifiedCurrency,
+      verifiedRef,
     },
     note:
       opts.note?.trim() ||
@@ -750,6 +991,162 @@ export async function confirmBankTransferPayment(opts: {
   await writeAuditLog({
     actorId: opts.adminUserId,
     action: "payment.bank_transfer.confirmed",
+    entityType: "Order",
+    entityId: updated.id,
+    meta: { orderNumber: updated.orderNumber },
+  });
+
+  const { notifyOrderPaid } = await import("@/services/order-notifications");
+  await notifyOrderPaid(updated.id).catch((e) =>
+    console.error("[notify:paid]", e),
+  );
+
+  return { ok: true, order: updated };
+}
+
+/**
+ * Admin refund: mark order refunded, restore inventory, claw back wallet credits.
+ */
+export async function refundOrder(opts: {
+  orderId: string;
+  adminUserId: string;
+  note?: string;
+}): Promise<{ ok: true; order: Order } | { ok: false; error: string }> {
+  const order = await prisma.order.findUnique({
+    where: { id: opts.orderId },
+    include: { items: true, payments: { take: 1, orderBy: { createdAt: "desc" } } },
+  });
+  if (!order) return { ok: false, error: "Order not found" };
+  if (order.status === "REFUNDED") return { ok: true, order };
+  if (order.status === "CANCELLED") {
+    return { ok: false, error: "Cancelled orders cannot be refunded this way." };
+  }
+  if (order.status === "PENDING_PAYMENT") {
+    return { ok: false, error: "Unpaid orders should be cancelled, not refunded." };
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const next = await tx.order.update({
+      where: { id: order.id },
+      data: { status: "REFUNDED" satisfies OrderStatus },
+    });
+
+    await tx.vendorOrder.updateMany({
+      where: { orderId: order.id },
+      data: { status: "CANCELLED" },
+    });
+
+    if (order.payments[0]) {
+      await tx.payment.update({
+        where: { id: order.payments[0].id },
+        data: { status: "REFUNDED" satisfies PaymentStatus },
+      });
+    }
+
+    for (const item of order.items) {
+      if (!item.productId) continue;
+      if (item.variantId) {
+        await tx.productVariant.update({
+          where: { id: item.variantId },
+          data: { inventoryQty: { increment: item.quantity } },
+        });
+      } else {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { inventoryQty: { increment: item.quantity } },
+        });
+      }
+      await tx.inventoryMovement.create({
+        data: {
+          productId: item.productId,
+          delta: item.quantity,
+          reason: "REFUND",
+          referenceId: order.id,
+        },
+      });
+    }
+
+    await tx.orderStatusHistory.create({
+      data: {
+        orderId: order.id,
+        status: "REFUNDED",
+        note:
+          opts.note?.trim() ||
+          "Order refunded by admin. Offline bank refund must be completed separately; ledger clawed back.",
+      },
+    });
+
+    return next;
+  });
+
+  await clawbackVendorEarnings(updated.id).catch((e) => {
+    console.error("[wallet:clawback]", e);
+  });
+
+  await writeAuditLog({
+    actorId: opts.adminUserId,
+    action: "order.refunded",
+    entityType: "Order",
+    entityId: updated.id,
+    meta: {
+      orderNumber: updated.orderNumber,
+      provider: order.payments[0]?.provider ?? null,
+      refundVerified: false,
+      note: "Bank-transfer refunds are manual; DB + inventory + ledger updated.",
+    },
+  });
+
+  return { ok: true, order: updated };
+}
+
+/** Customer confirms delivery of a shipped order. */
+export async function confirmDeliveryByCustomer(opts: {
+  orderId: string;
+  userId: string;
+}): Promise<{ ok: true; order: Order } | { ok: false; error: string }> {
+  const order = await prisma.order.findFirst({
+    where: { id: opts.orderId, userId: opts.userId },
+    include: { vendorOrders: true },
+  });
+  if (!order) return { ok: false, error: "Order not found" };
+  if (order.status === "DELIVERED") return { ok: true, order };
+  if (order.status !== "SHIPPED" && order.status !== "PROCESSING") {
+    return {
+      ok: false,
+      error: "Only shipped orders can be confirmed as delivered.",
+    };
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const next = await tx.order.update({
+      where: { id: order.id },
+      data: {
+        status: "DELIVERED" satisfies OrderStatus,
+        deliveredAt: new Date(),
+      },
+    });
+    await tx.vendorOrder.updateMany({
+      where: { orderId: order.id },
+      data: { status: "DELIVERED" },
+    });
+    await tx.orderStatusHistory.create({
+      data: {
+        orderId: order.id,
+        status: "DELIVERED",
+        note: "Customer confirmed delivery.",
+      },
+    });
+    return next;
+  });
+
+  const { settleVendorEarnings } = await import("@/services/wallet");
+  await settleVendorEarnings(updated.id).catch((e) =>
+    console.error("[wallet:settle]", e),
+  );
+
+  await writeAuditLog({
+    actorId: opts.userId,
+    action: "order.delivered.customer",
     entityType: "Order",
     entityId: updated.id,
     meta: { orderNumber: updated.orderNumber },

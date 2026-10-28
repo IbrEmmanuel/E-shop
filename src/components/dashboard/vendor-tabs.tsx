@@ -11,6 +11,7 @@ const tabs = [
   { href: "/admin/vendors/batches", label: "Batches" },
   { href: "/admin/vendors/orders", label: "Orders" },
   { href: "/admin/vendors/wallet", label: "Wallet" },
+  { href: "/admin/vendors/payouts", label: "Payouts" },
   { href: "/admin/vendors/settings", label: "Settings" },
 ];
 

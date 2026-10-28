@@ -105,9 +105,25 @@ export async function SiteHeader() {
             ) : null}
           </Link>
           <Link
-            href={user?.role === "ADMIN" ? "/admin" : "/login"}
+            href={
+              user?.role === "SUPER_ADMIN"
+                ? "/super"
+                : user?.role === "ADMIN"
+                  ? "/admin"
+                  : user
+                    ? "/account"
+                    : "/login?callbackUrl=/account"
+            }
             className="button button--glass button--icon"
-            aria-label={user?.role === "ADMIN" ? "Admin" : "Sign in"}
+            aria-label={
+              user?.role === "SUPER_ADMIN"
+                ? "Super admin"
+                : user?.role === "ADMIN"
+                  ? "Admin"
+                  : user
+                    ? "Account"
+                    : "Sign in"
+            }
           >
             <User size={18} strokeWidth={1.5} />
           </Link>

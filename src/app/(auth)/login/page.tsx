@@ -19,7 +19,8 @@ export default async function LoginPage({
 }) {
   const sp = await searchParams;
   const callbackUrl =
-    typeof sp.callbackUrl === "string" ? sp.callbackUrl : "/";
+    typeof sp.callbackUrl === "string" ? sp.callbackUrl : "/account";
+  const forCheckout = callbackUrl.startsWith("/checkout");
   const settings = await getSiteSettings();
 
   return (
@@ -29,12 +30,24 @@ export default async function LoginPage({
         <div className="auth-cinematic__copy home-reveal">
           <p className="auth-cinematic__eyebrow">Marketplace · Sign in</p>
           <h1 className="auth-cinematic__headline">
-            Curated shops.
-            <br />
-            One marketplace.
+            {forCheckout ? (
+              <>
+                Sign in
+                <br />
+                to place your order.
+              </>
+            ) : (
+              <>
+                Curated shops.
+                <br />
+                One marketplace.
+              </>
+            )}
           </h1>
           <p className="auth-cinematic__sub">
-            Track orders, checkout faster, and pick up where you left off.
+            {forCheckout
+              ? "Use your email and password. After login you will return to checkout."
+              : "Track orders, checkout faster, and pick up where you left off."}
           </p>
         </div>
       </div>
@@ -45,9 +58,13 @@ export default async function LoginPage({
           <Link href="/" className="auth-stage__brand auth-stage__brand--sm">
             {settings.siteName}
           </Link>
-          <h2 className="auth-stage__title">Welcome back</h2>
+          <h2 className="auth-stage__title">
+            {forCheckout ? "Sign in to continue" : "Welcome back"}
+          </h2>
           <p className="auth-stage__lede">
-            Sign in with your email to continue shopping and managing orders.
+            {forCheckout
+              ? "Orders require an account. Sign in with your email, then complete payment."
+              : "Sign in with your email to continue shopping and managing orders."}
           </p>
 
           <div className="auth-stage__form">
@@ -55,6 +72,10 @@ export default async function LoginPage({
           </div>
 
           <p className="auth-stage__foot">
+            <Link href={`/register?callbackUrl=${encodeURIComponent(callbackUrl)}`}>
+              Create an account
+            </Link>
+            {" · "}
             <Link href="/forgot-password">Forgot password?</Link>
           </p>
         </div>

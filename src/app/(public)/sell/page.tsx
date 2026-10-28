@@ -25,13 +25,16 @@ export default async function SellPage() {
               Rent a shop. Pay monthly. Publish your catalog.
             </h1>
             <p className="type-body mt-4 max-w-md">
-              Skip opaque commission stacks for a clear rental. Apply with a
-              plan, get approved, and the platform team publishes your catalog
-              from the admin console.
+              Create an account, verify your email, complete business KYC and
+              store setup, then submit for admin approval. After approval, list
+              products, fulfil orders, and request payouts from your vendor desk.
             </p>
-            <div className="mt-8">
+            <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild href="/vendor/apply" variant="accent" size="lg">
                 Apply to sell
+              </Button>
+              <Button asChild href="/vendor" variant="outline" size="lg">
+                Vendor desk
               </Button>
             </div>
           </div>

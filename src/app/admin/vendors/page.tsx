@@ -28,7 +28,7 @@ export default async function VendorOverviewPage() {
   if (user.vendor) {
     await ensureVendorWallet(user.vendor.id);
     stats = await getVendorWorkspaceStats(user.vendor.id);
-  } else if (user.role === "ADMIN") {
+  } else if ((user.role === "ADMIN" || user.role === "SUPER_ADMIN")) {
     const [activeProducts, orderAgg] = await Promise.all([
       prisma.product.count({ where: { status: "PUBLISHED" } }),
       prisma.vendorOrder.findMany({
@@ -49,7 +49,7 @@ export default async function VendorOverviewPage() {
   }
 
   const applications =
-    user.role === "ADMIN"
+    (user.role === "ADMIN" || user.role === "SUPER_ADMIN")
       ? await prisma.vendorApplication.findMany({
           where: {
             status: { in: ["SUBMITTED", "UNDER_REVIEW", "CHANGES_REQUESTED"] },
@@ -59,6 +59,21 @@ export default async function VendorOverviewPage() {
           include: {
             user: { select: { email: true, name: true } },
             rentalPlan: true,
+          },
+        })
+      : [];
+
+  const activeVendors =
+    user.role === "ADMIN" || user.role === "SUPER_ADMIN"
+      ? await prisma.vendor.findMany({
+          where: { status: "ACTIVE" },
+          orderBy: { storeName: "asc" },
+          take: 40,
+          select: {
+            id: true,
+            storeName: true,
+            contactEmail: true,
+            user: { select: { email: true } },
           },
         })
       : [];
@@ -127,6 +142,45 @@ export default async function VendorOverviewPage() {
             </Button>
           </div>
         </div>
+      ) : null}
+
+      {activeVendors.length > 0 ? (
+        <section className="space-y-4">
+          <h2 className="text-2xl">Active shops</h2>
+          <ul className="space-y-3">
+            {activeVendors.map((v) => (
+              <li
+                key={v.id}
+                className="card flex flex-wrap items-center justify-between gap-3 p-4"
+              >
+                <div>
+                  <p className="font-semibold">{v.storeName}</p>
+                  <p className="text-sm text-[var(--color-text-muted)]">
+                    {v.contactEmail || v.user.email}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    asChild
+                    href={`/vendor?vendorId=${encodeURIComponent(v.id)}`}
+                    size="sm"
+                    variant="outline"
+                  >
+                    Inspect desk
+                  </Button>
+                  <Button
+                    asChild
+                    href={`/vendor/orders?vendorId=${encodeURIComponent(v.id)}`}
+                    size="sm"
+                    variant="ghost"
+                  >
+                    Orders
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
       {applications.length > 0 ? (

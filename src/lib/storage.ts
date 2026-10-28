@@ -18,11 +18,14 @@ const MIME_EXT: Record<string, string> = {
   "image/gif": "gif",
 };
 
-/** 5 MiB default max upload size */
-export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+/** 12 MiB — enough for high-res product photos at catalog scale */
+export const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
+
+/** Data-URL fallback cap (Vercel read-only FS without S3). */
+const DATA_URL_MAX_BYTES = 4 * 1024 * 1024;
 
 export type SaveUploadResult =
-  | { ok: true; url: string; storage: "local" | "remote" }
+  | { ok: true; url: string; storage: "local" | "remote" | "inline" }
   | { ok: false; reason: string };
 
 function validateImage(file: {
@@ -42,13 +45,36 @@ function publicObjectUrl(key: string): string {
   const env = getEnv();
   const endpoint = env.STORAGE_ENDPOINT.replace(/\/$/, "");
   const bucket = env.STORAGE_BUCKET;
-  // Path-style URL works for most S3-compatible providers (R2, MinIO, etc.)
   return `${endpoint}/${bucket}/${key}`;
+}
+
+function isServerlessRuntime(): boolean {
+  return Boolean(
+    process.env.VERCEL ||
+      process.env.AWS_LAMBDA_FUNCTION_NAME ||
+      process.env.NEXT_RUNTIME === "nodejs" && process.env.VERCEL_ENV,
+  );
+}
+
+function asDataUrl(fileType: string, buffer: Buffer): SaveUploadResult {
+  if (buffer.byteLength > DATA_URL_MAX_BYTES) {
+    return {
+      ok: false,
+      reason:
+        "Image is too large for serverless storage without object storage. Configure STORAGE_* env vars, or upload a smaller proof (under 4 MB).",
+    };
+  }
+  return {
+    ok: true,
+    url: `data:${fileType};base64,${buffer.toString("base64")}`,
+    storage: "inline",
+  };
 }
 
 /**
  * Save an uploaded image to S3-compatible storage when configured,
- * otherwise to public/uploads.
+ * otherwise to public/uploads locally. On Vercel without S3, falls back to
+ * an inline data URL so payment proofs still work (read-only filesystem).
  */
 export async function saveUpload(
   file: File | {
@@ -102,13 +128,36 @@ export async function saveUpload(
     }
   }
 
-  const relativeDir = path.join("uploads", folder);
-  const absDir = path.join(process.cwd(), "public", relativeDir);
-  await mkdir(absDir, { recursive: true });
-  const absPath = path.join(absDir, filename);
-  await writeFile(absPath, buffer);
-  const url = `/${relativeDir.replace(/\\/g, "/")}/${filename}`;
-  return { ok: true, url, storage: "local" };
+  // Vercel / Lambda cannot write under /var/task/public
+  if (isServerlessRuntime()) {
+    return asDataUrl(file.type, buffer);
+  }
+
+  try {
+    const relativeDir = path.join("uploads", folder);
+    const absDir = path.join(process.cwd(), "public", relativeDir);
+    await mkdir(absDir, { recursive: true });
+    const absPath = path.join(absDir, filename);
+    await writeFile(absPath, buffer);
+    const url = `/${relativeDir.replace(/\\/g, "/")}/${filename}`;
+    return { ok: true, url, storage: "local" };
+  } catch (e) {
+    const code =
+      e && typeof e === "object" && "code" in e
+        ? String((e as { code?: string }).code)
+        : "";
+    // EROFS / EACCES — fall back to inline storage
+    if (code === "EROFS" || code === "EACCES" || code === "EPERM") {
+      console.warn("[storage:local-readonly-fallback]", code);
+      return asDataUrl(file.type, buffer);
+    }
+    console.error("[storage:local-failed]", e);
+    return {
+      ok: false,
+      reason:
+        e instanceof Error ? e.message : "Could not save uploaded image",
+    };
+  }
 }
 
 export function isAllowedImageMime(mime: string): boolean {

@@ -151,10 +151,10 @@ export async function startConsultationPayment(
     where: { id: consultationId },
   });
   if (!c) throw new Error("Consultation not found");
-  if (c.userId && c.userId !== u.id && u.role !== "ADMIN") {
+  if (c.userId && c.userId !== u.id && (u.role !== "ADMIN" && u.role !== "SUPER_ADMIN")) {
     throw new Error("Not allowed");
   }
-  if (c.email.toLowerCase() !== u.email.toLowerCase() && u.role !== "ADMIN") {
+  if (c.email.toLowerCase() !== u.email.toLowerCase() && (u.role !== "ADMIN" && u.role !== "SUPER_ADMIN")) {
     if (c.userId !== u.id) throw new Error("Not allowed");
   }
   if (c.paymentStatus === "PAID") {

@@ -12,7 +12,7 @@ async function main() {
   const adminEmail = (
     process.env.SEED_ADMIN_EMAIL ||
     process.env.OWNER_EMAIL ||
-    "emmanuelibrahim@gmail.com"
+    "emmanuelibrahim430@gmail.com"
   ).toLowerCase();
   const adminPass =
     process.env.SEED_ADMIN_PASSWORD ||
@@ -66,7 +66,7 @@ async function main() {
       firstName: "Emmanuel",
       lastName: "Ibrahim",
       passwordHash: adminHash,
-      role: "ADMIN",
+      role: "SUPER_ADMIN",
       referralCode: "ESHOP-OWNER",
     },
   });

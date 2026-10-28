@@ -21,7 +21,7 @@ async function main() {
   }
 
   const owner = await prisma.user.findUnique({
-    where: { email: "emmanuelibrahim@gmail.com" },
+    where: { email: "emmanuelibrahim430@gmail.com" },
   });
   if (owner) {
     await prisma.user.update({

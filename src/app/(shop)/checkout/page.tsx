@@ -1,15 +1,13 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { CheckoutForm } from "@/components/forms/checkout-form";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getSessionUser } from "@/lib/auth";
-import { getGuestKey } from "@/lib/guest";
-import {
-  bankTransferAvailable,
-  FINTECH_APPS,
-  getSettlementAccounts,
-} from "@/lib/payments/settlement";
+import { prisma } from "@/lib/db";
+import { paymentsConfigured } from "@/lib/env";
+import { bankTransferAvailable } from "@/lib/payments/settlement";
 import { formatMoney } from "@/lib/money";
 import { buildMetadata } from "@/lib/seo";
 import { getCartTotals } from "@/services/cart";
@@ -22,29 +20,25 @@ export const metadata = buildMetadata({
 
 export default async function CheckoutPage() {
   const user = await getSessionUser();
-  const guestKey = user ? null : await getGuestKey();
-  const bankEnabled = bankTransferAvailable();
-  const accounts = getSettlementAccounts();
-
-  if (!user && !guestKey) {
-    return (
-      <div className="container-page py-14">
-        <EmptyState
-          title="Nothing to checkout"
-          action={
-            <Button asChild href="/shop">
-              Shop
-            </Button>
-          }
-        />
-      </div>
-    );
+  if (!user) {
+    redirect("/login?callbackUrl=/checkout");
   }
 
-  const totals = await getCartTotals({
-    userId: user?.id,
-    guestKey,
-  }).catch(() => null);
+  const hosted = paymentsConfigured();
+  const bankEnabled = bankTransferAvailable();
+  const paymentsReady = hosted || bankEnabled;
+
+  const [totals, addresses] = await Promise.all([
+    getCartTotals({
+      userId: user.id,
+      guestKey: null,
+    }).catch(() => null),
+    prisma.address.findMany({
+      where: { userId: user.id },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+      take: 10,
+    }),
+  ]);
 
   if (!totals || totals.lines.length === 0) {
     return (
@@ -64,53 +58,53 @@ export default async function CheckoutPage() {
   return (
     <div className="container-page py-10 md:py-14">
       <h1 className="type-h1">Checkout</h1>
-      <p className="type-body mt-2 max-w-2xl">
-        Pay with {FINTECH_APPS.slice(0, 5).join(", ")}, and other Nigerian banks
-        — transfer to our UBA or OPay account after you place the order.
+      <p className="mt-2 max-w-lg text-sm text-[var(--color-text-secondary)]">
+        Signed in as {user.email}. Confirm delivery, choose OPay / UBA / bank,
+        then we create a payment request and verify before packing.
       </p>
-      {bankEnabled ? (
-        <Alert tone="info" className="mt-4 max-w-2xl">
-          Settlement accounts ready:{" "}
-          {accounts.map((a) => `${a.bank} ${a.accountNumber}`).join(" · ")}
+      {!paymentsReady ? (
+        <Alert tone="danger" className="mt-4 max-w-lg">
+          Payments are temporarily unavailable. Please try again later.
         </Alert>
-      ) : (
-        <Alert tone="danger" className="mt-4 max-w-2xl">
-          Settlement accounts are missing. Contact support before ordering.
-        </Alert>
-      )}
-      <div className="mt-8 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+      ) : null}
+      <div className="mt-8 grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:gap-14">
         <CheckoutForm
-          defaultEmail={user?.email}
-          defaultName={user?.name}
+          defaultEmail={user.email}
+          defaultName={user.name}
           subtotalMinor={totals.subtotalMinor}
           currency={totals.currency}
+          addresses={addresses}
+          hostedCheckoutAvailable={hosted}
         />
-        <aside className="card h-fit space-y-3 p-6">
-          <h2 className="font-semibold">Order summary</h2>
-          <ul className="space-y-2 text-sm">
+        <aside className="checkout-summary h-fit">
+          <h2 className="text-sm font-semibold tracking-wide text-[var(--color-text-muted)]">
+            Confirm bag
+          </h2>
+          <ul className="mt-4 space-y-3 text-sm">
             {totals.lines.map((line) => (
-              <li key={line.itemId} className="flex justify-between gap-3">
-                <span>
-                  {line.title} × {line.quantity}
+              <li key={line.itemId} className="flex justify-between gap-4">
+                <span className="min-w-0">
+                  <span className="line-clamp-2">{line.title}</span>
+                  <span className="text-[var(--color-text-muted)]">
+                    {" "}
+                    × {line.quantity}
+                  </span>
                 </span>
-                <span className="tabular-nums">
+                <span className="shrink-0 tabular-nums">
                   {formatMoney(line.lineTotalMinor, line.currency)}
                 </span>
               </li>
             ))}
           </ul>
-          <p className="text-sm text-[var(--color-text-muted)]">
-            Delivery fee is calculated from your city &amp; state on the form.
-          </p>
-          <div className="flex justify-between border-t border-[var(--color-border)] pt-3 font-semibold">
+          <div className="mt-5 flex justify-between border-t border-[var(--color-border)] pt-4 text-sm font-semibold">
             <span>Items</span>
             <span className="tabular-nums">
               {formatMoney(totals.subtotalMinor, totals.currency)}
             </span>
           </div>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            <Link href="/cart" className="underline">
-              Edit cart
+          <p className="mt-4 text-xs text-[var(--color-text-muted)]">
+            <Link href="/cart" className="underline underline-offset-2">
+              Edit bag
             </Link>
           </p>
         </aside>

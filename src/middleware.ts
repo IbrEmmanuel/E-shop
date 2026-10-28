@@ -2,33 +2,55 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
+function isStaff(role: string) {
+  return role === "ADMIN" || role === "SUPER_ADMIN";
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const token = await getToken({
-    req,
-    secret: process.env.AUTH_SECRET,
-  });
+  const secret = process.env.AUTH_SECRET;
+  const token = secret
+    ? await getToken({
+        req,
+        secret,
+        secureCookie: req.nextUrl.protocol === "https:",
+      })
+    : null;
 
-  if (pathname.startsWith("/admin") && !token) {
-    const login = new URL("/login", req.nextUrl.origin);
-    login.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(login);
+  const role = String(token?.role ?? "");
+
+  // Super-admin desk — Node layout also enforces
+  if (pathname === "/super" || pathname.startsWith("/super/")) {
+    if (!token) {
+      const login = new URL("/login", req.nextUrl.origin);
+      login.searchParams.set("callbackUrl", pathname);
+      return NextResponse.redirect(login);
+    }
+    if (role !== "SUPER_ADMIN") {
+      return NextResponse.redirect(
+        new URL(isStaff(role) ? "/admin" : "/", req.nextUrl.origin),
+      );
+    }
   }
 
-  if (pathname.startsWith("/admin") && token?.role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/", req.nextUrl.origin));
+  const isVendorApply =
+    pathname === "/vendor/apply" || pathname.startsWith("/vendor/apply/");
+  const isVendorDesk =
+    pathname === "/vendor" ||
+    (pathname.startsWith("/vendor/") && !isVendorApply);
+
+  if (isVendorDesk) {
+    if (!token) {
+      const login = new URL("/login", req.nextUrl.origin);
+      login.searchParams.set("callbackUrl", pathname);
+      return NextResponse.redirect(login);
+    }
+    if (role !== "VENDOR" && !isStaff(role)) {
+      return NextResponse.redirect(new URL("/sell", req.nextUrl.origin));
+    }
   }
 
-  // Legacy vendor desk URLs → sell / account (keep /vendor/apply)
-  if (
-    pathname.startsWith("/vendor") &&
-    pathname !== "/vendor/apply" &&
-    !pathname.startsWith("/vendor/apply/")
-  ) {
-    return NextResponse.redirect(new URL("/sell", req.nextUrl.origin));
-  }
-
-  if (pathname.startsWith("/vendor/apply") && !token) {
+  if (isVendorApply && secret && !token) {
     const login = new URL("/login", req.nextUrl.origin);
     login.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(login);
@@ -38,5 +60,11 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/vendor", "/vendor/:path*"],
+  matcher: [
+    "/admin/:path*",
+    "/super",
+    "/super/:path*",
+    "/vendor",
+    "/vendor/:path*",
+  ],
 };

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { CreatePlatformShopButton } from "@/components/forms/create-platform-shop";
 import { ProductForm } from "@/components/forms/product-form";
 import { SectionHeader } from "@/components/dashboard/section-header";
 import { VendorTabs } from "@/components/dashboard/vendor-tabs";
@@ -13,7 +14,7 @@ export default async function AdminNewVendorProductPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await getSessionUser();
-  if (!user || user.role !== "ADMIN") redirect("/login?callbackUrl=/admin");
+  if (!user || (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN")) redirect("/login?callbackUrl=/admin");
 
   const sp = await searchParams;
   const preselect =
@@ -36,15 +37,19 @@ export default async function AdminNewVendorProductPage({
       <div className="space-y-8">
         <SectionHeader
           title="Vendor"
-          description="Create a listing for an approved shop."
+          description="Products need a shop before you can add listings."
         />
         <VendorTabs />
-        <p className="text-sm text-[var(--color-text-secondary)]">
-          No vendor shops yet. Approve an application first.
-        </p>
-        <Button asChild href="/admin/vendors" variant="outline">
-          Applications
-        </Button>
+        <div className="card max-w-lg space-y-4 p-6">
+          <p className="text-sm text-[var(--color-text-secondary)]">
+            There are no shops yet. Create a platform shop now, or wait for a
+            seller to apply and approve them under Applications.
+          </p>
+          <CreatePlatformShopButton />
+          <Button asChild href="/admin/vendors" variant="outline" size="sm">
+            View applications
+          </Button>
+        </div>
       </div>
     );
   }

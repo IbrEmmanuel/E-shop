@@ -5,6 +5,8 @@ import { listPublished } from "@/services/blog";
 import { listPublishedProducts } from "@/services/products";
 import { listActivePlans } from "@/services/rentals";
 import { getSiteSettings } from "@/services/settings";
+import { AuthParticleOrb } from "@/components/auth/auth-particle-orb";
+import { SponsoredShelf } from "@/components/ads/sponsored-shelf";
 import { SectionHead } from "@/components/layout/section-head";
 import { ProductGrid } from "@/components/products/product-grid";
 import { SafeImage } from "@/components/products/safe-image";
@@ -34,11 +36,18 @@ export default async function HomePage() {
   try {
     const [listed, cats, rentalPlans, vendorList, vendorsTotal, blog] =
       await Promise.all([
-        listPublishedProducts({ pageSize: 8, sort: "newest" }),
+        listPublishedProducts({ pageSize: 12, sort: "newest" }),
         prisma.category.findMany({
-          where: { isActive: true, parentId: null },
+          where: {
+            isActive: true,
+            parentId: null,
+            OR: [
+              { imageUrl: { not: null } },
+              { products: { some: { status: "PUBLISHED" } } },
+            ],
+          },
           orderBy: { sortOrder: "asc" },
-          take: 6,
+          take: 8,
           select: { id: true, name: true, slug: true, imageUrl: true },
         }),
         listActivePlans(),
@@ -59,7 +68,27 @@ export default async function HomePage() {
         listPublished({ pageSize: 6 }),
       ]);
     products = listed.items;
-    categories = cats;
+    // Prefer categories that already have cover art; otherwise borrow a product photo.
+    categories = await Promise.all(
+      cats.map(async (cat) => {
+        if (cat.imageUrl) return cat;
+        const cover = await prisma.product.findFirst({
+          where: {
+            categoryId: cat.id,
+            status: "PUBLISHED",
+            images: { some: {} },
+          },
+          select: {
+            images: {
+              orderBy: { sortOrder: "asc" },
+              take: 1,
+              select: { url: true },
+            },
+          },
+        });
+        return { ...cat, imageUrl: cover?.images[0]?.url ?? null };
+      }),
+    );
     plans = rentalPlans;
     vendors = vendorList;
     vendorCount = vendorsTotal;
@@ -71,30 +100,29 @@ export default async function HomePage() {
   const fromPrice = plans[0]
     ? formatMoney(plans[0].monthlyPriceMinor, plans[0].currency)
     : null;
-  const heroImage = products[0]?.images[0]?.url ?? null;
-  const sellImage =
-    products[1]?.images[0]?.url || products[0]?.images[0]?.url || null;
+  const sellImage = products[0]?.images[0]?.url || null;
   return (
     <div className="home-page">
       <section className="home-hero relative min-h-[92vh] overflow-hidden">
-        <div className="absolute inset-0 -z-10">
-          {heroImage ? (
-            <SafeImage
-              src={heroImage}
-              alt=""
-              fill
-              priority
-              className="home-hero__image object-cover"
-              sizes="100vw"
+        <div className="home-hero__backdrop" aria-hidden>
+          <div className="home-hero__atmosphere">
+            <span className="home-hero__glow home-hero__glow--a" />
+            <span className="home-hero__glow home-hero__glow--b" />
+            <span className="home-hero__glow home-hero__glow--c" />
+            <span className="home-hero__grain" />
+          </div>
+          <div className="home-hero__orb-stage">
+            <AuthParticleOrb
+              label={settings.siteName}
+              variant="hero"
+              className="home-hero__orb"
             />
-          ) : (
-            <div className="home-hero__brand-field" aria-hidden />
-          )}
-          <div className="home-hero__wash" aria-hidden />
-          <div className="home-hero__grain" aria-hidden />
+            <span className="home-hero__floor-shadow" />
+          </div>
+          <div className="home-hero__wash" />
         </div>
-        <div className="container-page flex min-h-[92vh] items-end pb-16 pt-28 md:items-center md:pb-24 md:pt-24">
-          <div className="max-w-2xl space-y-5 md:space-y-6">
+        <div className="container-page relative z-[2] flex min-h-[92vh] items-end pb-16 pt-28 md:items-center md:pb-24 md:pt-24">
+          <div className="relative max-w-xl space-y-5 md:max-w-2xl md:space-y-6">
             <p className="home-reveal home-reveal--1 type-h1">
               {settings.siteName}
             </p>
@@ -154,9 +182,7 @@ export default async function HomePage() {
                     <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-surface-secondary)] to-[var(--color-bg-subtle)]" />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-overlay)] via-[color-mix(in_oklab,var(--color-overlay)_35%,transparent)] to-transparent" />
-                  <span
-                    className="absolute bottom-3 left-3 right-3 font-[family-name:var(--font-display)] text-base font-semibold text-[var(--color-text-inverse)] md:text-sm"
-                  >
+                  <span className="absolute bottom-3 left-3 right-3 font-[family-name:var(--font-display)] text-base font-semibold text-white drop-shadow md:text-sm">
                     {cat.name}
                   </span>
                 </div>
@@ -223,6 +249,7 @@ export default async function HomePage() {
 
       <section className="app-section py-20 md:py-28">
         <div className="container-page">
+          <SponsoredShelf />
           <SectionHead
             title="New arrivals"
             lede="Fresh listings from active storefronts."

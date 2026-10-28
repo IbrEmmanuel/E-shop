@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ConfirmTransferButton } from "@/components/payments/confirm-transfer-button";
 import { FulfillmentActions } from "@/components/payments/fulfillment-actions";
+import { RefundOrderButton } from "@/components/payments/refund-order-button";
 import { SectionHeader } from "@/components/dashboard/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { getSessionUser } from "@/lib/auth";
 import { formatMoney } from "@/lib/money";
 import { prisma } from "@/lib/db";
+import { expireStaleUnpaidOrders } from "@/services/orders";
 
 type PaymentMeta = {
   paidVia?: string;
@@ -17,7 +19,11 @@ type PaymentMeta = {
 
 export default async function AdminOrdersPage() {
   const session = await getSessionUser();
-  const isAdmin = session?.role === "ADMIN";
+  const isAdmin = (session?.role === "ADMIN" || session?.role === "SUPER_ADMIN");
+
+  if (isAdmin) {
+    await expireStaleUnpaidOrders(48).catch(() => 0);
+  }
 
   const orders = await prisma.order.findMany({
     where: isAdmin ? undefined : { userId: session!.id },
@@ -71,6 +77,8 @@ export default async function AdminOrdersPage() {
               payment &&
               (payment.status === "REQUIRES_ACTION" ||
                 payment.status === "PENDING");
+            const underInvestigation =
+              isAdmin && payment?.investigationStatus === "OPEN";
 
             return (
               <li
@@ -115,6 +123,11 @@ export default async function AdminOrdersPage() {
                       ? ` · via ${meta.paidVia}${meta.transferRef ? ` (${meta.transferRef})` : ""}`
                       : ""}
                   </p>
+                  {underInvestigation ? (
+                    <p className="text-xs font-semibold text-[var(--color-danger)]">
+                      Investigation: {payment?.investigationNote}
+                    </p>
+                  ) : null}
                   {meta.proofUrl ? (
                     <a
                       href={meta.proofUrl}
@@ -141,22 +154,36 @@ export default async function AdminOrdersPage() {
                     tone={
                       o.status === "PAID" || o.status === "DELIVERED"
                         ? "success"
-                        : payment?.status === "REQUIRES_ACTION"
+                        : underInvestigation ||
+                            payment?.status === "REQUIRES_ACTION"
                           ? "warning"
                           : "info"
                     }
                   >
-                    {o.status}
+                    {underInvestigation ? "INVESTIGATION" : o.status}
                   </Badge>
                   <p className="font-semibold tabular-nums">
                     {formatMoney(o.totalMinor, o.currency)}
                   </p>
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     {needsConfirm && meta.proofUrl ? (
-                      <ConfirmTransferButton orderId={o.id} />
+                      <ConfirmTransferButton
+                        orderId={o.id}
+                        expectedAmountLabel={formatMoney(
+                          o.totalMinor,
+                          o.currency,
+                        )}
+                        reportedRef={meta.transferRef}
+                      />
                     ) : null}
                     {isAdmin ? (
                       <FulfillmentActions orderId={o.id} status={o.status} />
+                    ) : null}
+                    {isAdmin &&
+                    ["PAID", "PROCESSING", "SHIPPED", "DELIVERED"].includes(
+                      o.status,
+                    ) ? (
+                      <RefundOrderButton orderId={o.id} />
                     ) : null}
                     <Link
                       href={`/account/orders/${o.orderNumber}`}

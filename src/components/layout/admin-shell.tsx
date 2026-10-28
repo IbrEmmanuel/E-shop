@@ -12,6 +12,11 @@ import {
   ShoppingBag,
   Megaphone,
   Settings,
+  Users,
+  ScrollText,
+  BadgeCheck,
+  CircleAlert,
+  Shield,
 } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -41,8 +46,11 @@ const navGroups: NavGroup[] = [
     title: "Commerce",
     items: [
       { href: "/admin/orders", label: "Orders", icon: Package },
+      { href: "/admin/payments", label: "Investigations", icon: CircleAlert },
+      { href: "/admin/products", label: "Approvals", icon: BadgeCheck },
       { href: "/admin/marketplace", label: "Marketplace", icon: ShoppingBag },
-      { href: "/admin/vendors", label: "Vendor", icon: Store },
+      { href: "/admin/vendors", label: "Vendors", icon: Store },
+      { href: "/admin/customers", label: "Customers", icon: Users },
     ],
   },
   {
@@ -50,6 +58,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: "/admin/advertising", label: "Advertising", icon: Megaphone },
       { href: "/admin/consultations", label: "Consultations", icon: MessagesSquare },
+      { href: "/admin/audit-log", label: "Audit log", icon: ScrollText },
     ],
   },
   {
@@ -110,10 +119,12 @@ export function AdminShell({
   children,
   userName,
   userEmail,
+  isSuperAdmin = false,
 }: {
   children: React.ReactNode;
   userName?: string | null;
   userEmail?: string | null;
+  isSuperAdmin?: boolean;
 }) {
   const pathname = usePathname();
   const initial = (userName || "A").trim().charAt(0).toUpperCase();
@@ -128,7 +139,9 @@ export function AdminShell({
             <span className="admin-sidebar__mark">E</span>
             <span>
               <span className="admin-sidebar__name">E-Shop</span>
-              <span className="admin-sidebar__tag">Console</span>
+              <span className="admin-sidebar__tag">
+                {isSuperAdmin ? "Super console" : "Console"}
+              </span>
             </span>
           </Link>
           <ThemeToggle className="admin-sidebar__theme" />
@@ -136,6 +149,32 @@ export function AdminShell({
 
         <nav className="admin-nav" aria-label="Admin">
           <NavGroups pathname={pathname} />
+          {isSuperAdmin ? (
+            <div className="admin-nav__group">
+              <p className="admin-sidebar__section">Platform</p>
+              <div className="admin-nav__stack">
+                <NavLink
+                  href="/super"
+                  label="Super admin"
+                  icon={Shield}
+                  pathname={pathname}
+                  exact
+                />
+                <NavLink
+                  href="/super/admins"
+                  label="Admins & roles"
+                  icon={Users}
+                  pathname={pathname}
+                />
+                <NavLink
+                  href="/super/audit"
+                  label="Audit log"
+                  icon={ScrollText}
+                  pathname={pathname}
+                />
+              </div>
+            </div>
+          ) : null}
         </nav>
 
         <div className="admin-sidebar__footer">

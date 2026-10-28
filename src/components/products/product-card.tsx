@@ -26,8 +26,8 @@ export function ProductCard({ product }: { product: PublicProduct }) {
               src={image.url}
               alt={image.altText || product.title}
               fill
-              sizes="(max-width:768px) 50vw, 25vw"
-              className="object-cover transition-transform duration-700 ease-[var(--ease-standard)] group-hover:scale-[1.04]"
+              sizes="(max-width:768px) 50vw, (max-width:1200px) 33vw, 25vw"
+              className="product-card__photo object-cover transition-transform duration-700 ease-[var(--ease-standard)] group-hover:scale-[1.03]"
             />
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-[var(--color-text-muted)]">

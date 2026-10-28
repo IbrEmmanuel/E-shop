@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
-  title: "Search",
+  title: "Search products",
+  description:
+    "Search E-Shop by product name — see photos, prices, and buy instantly.",
   path: "/search",
-  noIndex: true,
 });
 
 type SP = Promise<Record<string, string | string[] | undefined>>;

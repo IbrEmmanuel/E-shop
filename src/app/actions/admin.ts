@@ -7,7 +7,10 @@ import { prisma } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit";
 import { requireAdmin } from "@/lib/permissions";
 import { checkRentalAllowsPublishing } from "@/services/rentals";
-import { adminApproveApplication } from "@/services/vendors";
+import {
+  adminApproveApplication,
+  adminEnsurePlatformShop,
+} from "@/services/vendors";
 import { adminCreatePost, adminUpdatePost } from "@/services/blog";
 
 export type AdminActionResult =
@@ -30,6 +33,25 @@ export async function approveVendorAction(
   }
 }
 
+export async function createPlatformShopAction(
+  _prev: AdminActionResult | null,
+  _formData: FormData,
+): Promise<AdminActionResult> {
+  const user = await getSessionUser();
+  try {
+    await adminEnsurePlatformShop(user);
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not create platform shop",
+    };
+  }
+  revalidatePath("/admin/vendors");
+  revalidatePath("/admin/vendors/products");
+  revalidatePath("/admin/vendors/products/new");
+  redirect("/admin/vendors/products/new");
+}
+
 export async function rejectVendorAction(
   _prev: AdminActionResult | null,
   formData: FormData,
@@ -38,7 +60,10 @@ export async function rejectVendorAction(
   try {
     const admin = requireAdmin(user);
     const applicationId = String(formData.get("applicationId") ?? "");
-    const reviewNotes = String(formData.get("reviewNotes") || "") || null;
+    const reviewNotes = String(formData.get("reviewNotes") || "").trim();
+    if (!reviewNotes) {
+      return { ok: false, error: "Add a rejection reason for the seller." };
+    }
     const app = await prisma.vendorApplication.findUnique({
       where: { id: applicationId },
     });
@@ -60,10 +85,44 @@ export async function rejectVendorAction(
       entityType: "VendorApplication",
       entityId: applicationId,
     });
+    const { sendEmail } = await import("@/lib/email");
+    const { siteUrl } = await import("@/lib/env");
+    await sendEmail({
+      to: app.contactEmail,
+      subject: "Seller application rejected",
+      html: `<p>Your application was rejected.</p><p>${reviewNotes}</p><p><a href="${siteUrl("/vendor/apply")}">Update and resubmit</a></p>`,
+      text: `Rejected: ${reviewNotes}`,
+    });
     revalidatePath("/admin/vendors");
+    revalidatePath("/vendor/apply");
     return { ok: true, message: "Application rejected." };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Reject failed" };
+  }
+}
+
+export async function requestVendorChangesAction(
+  _prev: AdminActionResult | null,
+  formData: FormData,
+): Promise<AdminActionResult> {
+  const user = await getSessionUser();
+  try {
+    const { adminRequestApplicationChanges } = await import(
+      "@/services/vendor-application"
+    );
+    await adminRequestApplicationChanges(
+      user,
+      String(formData.get("applicationId") ?? ""),
+      String(formData.get("reviewNotes") || ""),
+    );
+    revalidatePath("/admin/vendors");
+    revalidatePath("/vendor/apply");
+    return { ok: true, message: "Seller asked for corrections." };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not request changes",
+    };
   }
 }
 
@@ -96,10 +155,17 @@ export async function moderateProductAction(
       }
     }
 
+    const rejectionReason =
+      status === "REJECTED"
+        ? String(formData.get("rejectionReason") || "").trim() ||
+          "Needs edits before publishing."
+        : null;
+
     await prisma.product.update({
       where: { id: productId },
       data: {
         status,
+        rejectionReason,
         publishedAt:
           status === "PUBLISHED"
             ? (product.publishedAt ?? new Date())
@@ -111,9 +177,10 @@ export async function moderateProductAction(
       action: "product.moderated",
       entityType: "Product",
       entityId: productId,
-      meta: { status },
+      meta: { status, rejectionReason },
     });
     revalidatePath("/admin/products");
+    revalidatePath("/vendor/products");
     return { ok: true, message: `Product set to ${status}.` };
   } catch (e) {
     return {

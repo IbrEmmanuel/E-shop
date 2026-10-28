@@ -18,17 +18,46 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: {
-    default: "E-Shop — Curated multi-vendor marketplace",
+    default: "E-Shop — Phones, Inverters, Batteries & Fashion",
     template: "%s · E-Shop",
   },
   description:
-    "Discover curated products from independent shops. Rent a storefront monthly, sell with live inventory, and checkout securely.",
+    "Buy phones, solar inverters, lithium batteries, headphones, smart watches, amplifiers, and unisex fashion. Live inventory, bank-transfer checkout, and monthly shop rentals.",
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   ),
+  applicationName: "E-Shop",
+  keywords: [
+    "online shop Nigeria",
+    "buy phones",
+    "solar inverter",
+    "lithium battery",
+    "headphones",
+    "smart watch",
+    "unisex fashion",
+    "amplifiers",
+    "E-Shop marketplace",
+  ],
   openGraph: {
     siteName: "E-Shop",
     type: "website",
+    title: "E-Shop — Phones, Inverters, Batteries & Fashion",
+    description:
+      "Curated multi-vendor marketplace with live catalog, search, and secure bank-transfer checkout.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "E-Shop Marketplace",
+    description:
+      "Shop phones, power gear, audio, watches, and fashion — search by name for images and prices.",
+  },
+  appleWebApp: {
+    capable: true,
+    title: "E-Shop",
+    statusBarStyle: "default",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
   },
 };
 

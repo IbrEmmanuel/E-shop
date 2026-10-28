@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CreatePlatformShopButton } from "@/components/forms/create-platform-shop";
 import { SectionHeader } from "@/components/dashboard/section-header";
 import { VendorTabs } from "@/components/dashboard/vendor-tabs";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +14,9 @@ import { prisma } from "@/lib/db";
 export default async function VendorProductsPage() {
   const session = await getSessionUser();
   const user = await ensureUserWorkspace(session!);
-  const isAdmin = user.role === "ADMIN";
+  const isAdmin = (user.role === "ADMIN" || user.role === "SUPER_ADMIN");
+
+  const vendorCount = isAdmin ? await prisma.vendor.count() : 0;
 
   const products = user.vendor
     ? await prisma.product.findMany({
@@ -39,7 +42,7 @@ export default async function VendorProductsPage() {
         description="Edit product description, price, and image for each listing."
         userName={user.name}
         actions={
-          isAdmin ? (
+          isAdmin && vendorCount > 0 ? (
             <Button asChild href="/admin/vendors/products/new" variant="primary">
               New product
             </Button>
@@ -48,7 +51,16 @@ export default async function VendorProductsPage() {
       />
       <VendorTabs />
 
-      {products.length === 0 ? (
+      {isAdmin && vendorCount === 0 ? (
+        <div className="card max-w-lg space-y-4 p-6">
+          <h3 className="text-lg font-semibold">No shop yet</h3>
+          <p className="text-sm text-[var(--color-text-secondary)]">
+            You cannot add products until a shop exists. Create a platform shop
+            to start listing immediately.
+          </p>
+          <CreatePlatformShopButton />
+        </div>
+      ) : products.length === 0 ? (
         <EmptyState
           title="No products"
           description="Create a listing or import a CSV from Vendor → Bulk."

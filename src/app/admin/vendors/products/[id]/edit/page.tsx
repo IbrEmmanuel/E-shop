@@ -10,7 +10,7 @@ type Props = { params: Promise<{ id: string }> };
 export default async function AdminEditVendorProductPage({ params }: Props) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
-  if (user.role !== "ADMIN") redirect("/admin/vendors/products");
+  if ((user.role !== "ADMIN" && user.role !== "SUPER_ADMIN")) redirect("/admin/vendors/products");
 
   const { id } = await params;
   const product = await prisma.product.findUnique({

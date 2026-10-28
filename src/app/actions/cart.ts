@@ -55,5 +55,9 @@ export async function removeCartItemAction(formData: FormData) {
 
 export async function buyNowAction(formData: FormData) {
   await addToCartAction(formData);
+  const user = await getSessionUser();
+  if (!user) {
+    redirect("/login?callbackUrl=/checkout");
+  }
   redirect("/checkout");
 }

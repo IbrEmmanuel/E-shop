@@ -30,7 +30,7 @@ export default async function AdminConsultationsPage({
 
   const mine = await listMyConsultations(session);
   const allAdmin =
-    session?.role === "ADMIN"
+    (session?.role === "ADMIN" || session?.role === "SUPER_ADMIN")
       ? await listConsultations(session, { take: 30 })
       : [];
 
@@ -141,7 +141,7 @@ export default async function AdminConsultationsPage({
         </ul>
       )}
 
-      {session?.role === "ADMIN" && allAdmin.length > 0 && tab === "mine" ? (
+      {(session?.role === "ADMIN" || session?.role === "SUPER_ADMIN") && allAdmin.length > 0 && tab === "mine" ? (
         <section className="space-y-4 pt-4">
           <h2
             className="text-2xl"

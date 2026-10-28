@@ -10,6 +10,7 @@ import {
 } from "@/lib/permissions";
 import { slugify, uniqueSlug } from "@/lib/slug";
 import { sendEmail } from "@/lib/email";
+import { ensureVendorWallet } from "@/services/workspace";
 
 const applySchema = z.object({
   storeName: z.string().trim().min(2).max(120),
@@ -130,6 +131,8 @@ export async function adminApproveApplication(
         contactEmail: application.contactEmail,
         contactPhone: application.contactPhone,
         businessName: application.businessName,
+        logoUrl: application.logoUrl,
+        bannerUrl: application.bannerUrl,
         status: "ACTIVE",
         commissionBps: opts?.commissionBps ?? 1000,
       },
@@ -164,6 +167,8 @@ export async function adminApproveApplication(
     return created;
   });
 
+  await ensureVendorWallet(vendor.id);
+
   await writeAuditLog({
     actorId: admin.id,
     action: "vendor.application.approved",
@@ -174,9 +179,9 @@ export async function adminApproveApplication(
 
   await sendEmail({
     to: application.contactEmail,
-    subject: "Your E-Shop vendor application was approved",
-    html: `<p>Your store <strong>${vendor.storeName}</strong> is now active. Trial ends ${trialEnd.toISOString()}.</p>`,
-    text: `Your store ${vendor.storeName} is now active. Trial ends ${trialEnd.toISOString()}.`,
+    subject: "Your shop is live — open your vendor desk",
+    html: `<p>Your store <strong>${vendor.storeName}</strong> is active.</p><p>Open your desk to list products, fulfil orders, and request payouts: <a href="/vendor">/vendor</a></p><p>Trial ends ${trialEnd.toLocaleDateString("en-NG")}.</p>`,
+    text: `Your store ${vendor.storeName} is active. Open /vendor to manage products, orders, and payouts. Trial ends ${trialEnd.toISOString()}.`,
   });
 
   return vendor;
@@ -198,6 +203,104 @@ export async function getVendorBySlug(slug: string) {
 }
 
 /**
+ * Create an active platform shop for the admin so products can be listed
+ * without waiting for a seller application.
+ */
+export async function adminEnsurePlatformShop(
+  user: SessionUser | null | undefined,
+): Promise<Vendor> {
+  const admin = requireAdmin(user);
+
+  const existing = await prisma.vendor.findUnique({
+    where: { userId: admin.id },
+  });
+  if (existing) return existing;
+
+  const plan =
+    (await prisma.shopRentalPlan.findFirst({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+    })) ??
+    (await prisma.shopRentalPlan.create({
+      data: {
+        slug: "starter",
+        name: "Starter",
+        description: "Platform default plan",
+        monthlyPriceMinor: 1500000,
+        maxProducts: 1_000_000,
+        trialDays: 365,
+        featuresJson: '["Platform shop"]',
+        sortOrder: 0,
+      },
+    }));
+
+  const categoryCount = await prisma.category.count();
+  if (categoryCount === 0) {
+    const defaults = [
+      { name: "General", slug: "general" },
+      { name: "Electronics", slug: "electronics" },
+      { name: "Fashion", slug: "fashion" },
+      { name: "Home", slug: "home" },
+    ];
+    await prisma.category.createMany({ data: defaults });
+  }
+
+  const baseSlug = "eshop-platform";
+  let slug = baseSlug;
+  let attempt = 0;
+  while (await prisma.vendor.findUnique({ where: { slug } })) {
+    attempt += 1;
+    slug = uniqueSlug(baseSlug, attempt);
+  }
+
+  const now = new Date();
+  const periodEnd = new Date(now);
+  periodEnd.setDate(periodEnd.getDate() + Math.max(plan.trialDays, 365));
+
+  const vendor = await prisma.$transaction(async (tx) => {
+    const created = await tx.vendor.create({
+      data: {
+        userId: admin.id,
+        slug,
+        storeName: "E-Shop Platform",
+        description: "Official marketplace shop managed by the platform admin.",
+        contactEmail: admin.email,
+        businessName: "E-Shop",
+        status: "ACTIVE",
+        commissionBps: 0,
+      },
+    });
+
+    await tx.vendorRental.create({
+      data: {
+        vendorId: created.id,
+        planId: plan.id,
+        status: "ACTIVE",
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+        nextPaymentDue: periodEnd,
+      },
+    });
+
+    await tx.vendorWallet.create({
+      data: { vendorId: created.id, currency: "NGN" },
+    });
+
+    // Keep ADMIN role — do not demote to VENDOR.
+    return created;
+  });
+
+  await writeAuditLog({
+    actorId: admin.id,
+    action: "vendor.platform_shop.created",
+    entityType: "Vendor",
+    entityId: vendor.id,
+  });
+
+  return vendor;
+}
+
+/**
  * Ensure the session user owns the vendor (or is admin).
  */
 export async function requireOwnedVendor(
@@ -205,7 +308,7 @@ export async function requireOwnedVendor(
   vendorId?: string,
 ): Promise<Vendor> {
   const u = requireAuth(user);
-  if (u.role === "ADMIN" && vendorId) {
+  if ((u.role === "ADMIN" || u.role === "SUPER_ADMIN") && vendorId) {
     const v = await prisma.vendor.findUnique({ where: { id: vendorId } });
     if (!v) throw new PermissionError("Vendor not found");
     return v;

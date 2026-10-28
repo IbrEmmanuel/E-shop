@@ -18,7 +18,7 @@ model User {
   lastName      String?
   passwordHash  String?
   image         String?
-  role          String    @default("CUSTOMER") // CUSTOMER | VENDOR | ADMIN
+  role          String    @default("CUSTOMER") // CUSTOMER | VENDOR | ADMIN | SUPER_ADMIN
   status        String    @default("ACTIVE") // ACTIVE | DISABLED
   referralCode  String?   @unique
   referredById  String?
@@ -48,6 +48,8 @@ model User {
   audienceConsent     AudienceConsent?
   adEvents            AdEvent[]
   productViews        ProductViewEvent[]
+  productReviews      ProductReview[]
+  payoutReviews       PayoutRequest[]      @relation("PayoutReviewer")
 }
 
 model Account {
@@ -137,21 +139,49 @@ model Vendor {
   rental          VendorRental?
   wallet          VendorWallet?
   adCampaigns     AdCampaign[]
+  payoutRequests  PayoutRequest[]
 }
 
 model VendorApplication {
   id              String                   @id @default(cuid())
   userId          String
   vendorId        String?
-  storeName       String
-  businessName    String?
-  description     String?
-  contactEmail    String
-  contactPhone    String?
-  website         String?
+  /// DRAFT | SUBMITTED | UNDER_REVIEW | CHANGES_REQUESTED | APPROVED | REJECTED
   status          String                   @default("DRAFT")
   reviewNotes     String?
   rentalPlanId    String?
+
+  // Contact
+  storeName       String                   @default("")
+  businessName    String?
+  businessType    String?                  // sole_prop | ltd | partnership | other
+  description     String?
+  contactEmail    String                   @default("")
+  contactPhone    String?
+  website         String?
+
+  // Business location
+  businessAddress String?
+  businessCity    String?
+  businessState   String?
+  businessCountry String                   @default("NG")
+
+  // Store branding
+  logoUrl         String?
+  bannerUrl       String?
+  categoryIdsJson String                   @default("[]")
+
+  // Ops settings
+  shippingPolicy  String?
+  returnsPolicy   String?
+  processingDays  Int?
+  taxId           String?
+  payoutBankName  String?
+  payoutAccountName String?
+  payoutAccountNumber String?
+
+  /// Wizard step completed: 1 account … 6 review
+  wizardStep      Int                      @default(1)
   createdAt       DateTime                 @default(now())
   updatedAt       DateTime                 @updatedAt
   submittedAt     DateTime?
@@ -160,9 +190,26 @@ model VendorApplication {
   user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   vendor          Vendor?         @relation(fields: [vendorId], references: [id])
   rentalPlan      ShopRentalPlan? @relation(fields: [rentalPlanId], references: [id])
+  documents       VendorApplicationDocument[]
 
   @@index([userId])
   @@index([status])
+}
+
+model VendorApplicationDocument {
+  id            String   @id @default(cuid())
+  applicationId String
+  /// id_card | business_reg | proof_of_address | other
+  docType       String
+  label         String?
+  fileUrl       String
+  fileName      String?
+  mimeType      String?
+  createdAt     DateTime @default(now())
+
+  application   VendorApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
 }
 
 /// Monthly shop rental plans (rent a shop, pay monthly)
@@ -260,6 +307,7 @@ model Product {
   compareAtMinor   Int?
   currency         String        @default("NGN")
   status           String        @default("DRAFT") // DRAFT | PENDING_REVIEW | PUBLISHED | REJECTED | ARCHIVED
+  rejectionReason  String?
   inventoryQty     Int           @default(0)
   reservedQty      Int           @default(0)
   weightGrams      Int?
@@ -279,12 +327,16 @@ model Product {
   adCreatives      AdCreative[]
   productViews     ProductViewEvent[]
   adEvents         AdEvent[]
+  reviews          ProductReview[]
 
   @@unique([vendorId, sku])
   @@index([status])
   @@index([categoryId])
   @@index([vendorId])
   @@index([title])
+  @@index([status, publishedAt])
+  @@index([status, priceMinor])
+  @@index([sku])
 }
 
 model ProductVariant {
@@ -407,6 +459,7 @@ model OrderItem {
   orderId         String
   vendorOrderId   String?
   productId       String?
+  variantId       String?
   vendorId        String
   titleSnapshot   String
   skuSnapshot     String
@@ -422,6 +475,7 @@ model OrderItem {
 
   @@index([orderId])
   @@index([vendorOrderId])
+  @@index([variantId])
 }
 
 model VendorOrder {
@@ -433,6 +487,7 @@ model VendorOrder {
   subtotalMinor Int
   shippingMinor Int         @default(0)
   totalMinor    Int
+  trackingNumber String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
@@ -443,6 +498,47 @@ model VendorOrder {
   @@unique([orderId, vendorId])
   @@index([vendorId])
   @@index([vendorId, status])
+}
+
+model ProductReview {
+  id        String   @id @default(cuid())
+  productId String
+  userId    String
+  rating    Int
+  title     String?
+  body      String
+  status    String   @default("PUBLISHED") // PUBLISHED | HIDDEN
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, userId])
+  @@index([productId, status])
+  @@index([userId])
+}
+
+model PayoutRequest {
+  id            String    @id @default(cuid())
+  vendorId      String
+  amountMinor   Int
+  currency      String    @default("NGN")
+  status        String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  bankName      String
+  accountName   String
+  accountNumber String
+  adminNote     String?
+  reviewedAt    DateTime?
+  reviewedById  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  vendor        Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  reviewedBy    User?     @relation("PayoutReviewer", fields: [reviewedById], references: [id])
+
+  @@index([vendorId, status])
+  @@index([status])
 }
 
 model OrderStatusHistory {
@@ -464,6 +560,9 @@ model Payment {
   amountMinor    Int
   currency       String
   status         String        @default("PENDING")
+  /// OPEN when amount/ref mismatch needs manual review
+  investigationStatus String?
+  investigationNote   String?
   idempotencyKey String        @unique
   rawMetaJson    String?
   paidAt         DateTime?
@@ -474,6 +573,7 @@ model Payment {
 
   @@index([orderId])
   @@index([status])
+  @@index([investigationStatus])
 }
 
 model PaymentWebhookEvent {

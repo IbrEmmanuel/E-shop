@@ -1,6 +1,5 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
@@ -12,7 +11,8 @@ const credentialsSchema = z.object({
 });
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
+  // JWT + credentials only — Prisma adapter is unused for sessions and can
+  // interfere with credential sign-in on serverless.
   session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 7 },
   pages: {
     signIn: "/login",
@@ -39,11 +39,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         );
         if (!valid) return null;
 
+        // Optional bootstrap: SUPER_ADMIN_EMAIL elevates the platform owner once.
+        let role = user.role as Role;
+        const superEmails = (process.env.SUPER_ADMIN_EMAIL || "")
+          .split(",")
+          .map((e) => e.trim().toLowerCase())
+          .filter(Boolean);
+        if (
+          superEmails.includes(user.email.toLowerCase()) &&
+          role !== "SUPER_ADMIN"
+        ) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { role: "SUPER_ADMIN" },
+          });
+          role = "SUPER_ADMIN";
+        }
+
         return {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: user.role as Role,
+          role,
           status: user.status,
         };
       },

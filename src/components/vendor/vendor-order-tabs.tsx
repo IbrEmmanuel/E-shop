@@ -9,19 +9,28 @@ export function VendorOrderTabs({
   active,
   counts,
   basePath = "/admin/vendors/orders",
+  vendorId,
 }: {
   active: VendorOrderTab;
   counts: Record<VendorOrderTab, number>;
   basePath?: string;
+  vendorId?: string | null;
 }) {
+  function hrefFor(tabKey: string) {
+    const qs = new URLSearchParams();
+    if (vendorId) qs.set("vendorId", vendorId);
+    if (tabKey !== "all") qs.set("tab", tabKey);
+    const q = qs.toString();
+    return q ? `${basePath}?${q}` : basePath;
+  }
+
   return (
     <nav
       className="flex gap-2 overflow-x-auto pb-1"
       aria-label="Order filters"
     >
       {VENDOR_ORDER_TABS.map((tab) => {
-        const href =
-          tab.key === "all" ? basePath : `${basePath}?tab=${tab.key}`;
+        const href = hrefFor(tab.key);
         const isActive = active === tab.key;
         const count = counts[tab.key] ?? 0;
         return (
@@ -39,8 +48,8 @@ export function VendorOrderTabs({
             {tab.label}
             <span
               className={cn(
-                "tabular-nums text-xs font-bold",
-                isActive ? "opacity-90" : "text-[var(--color-text-muted)]",
+                "rounded-full px-1.5 text-xs tabular-nums",
+                isActive ? "bg-white/20" : "bg-[var(--color-border)]",
               )}
             >
               {count}
