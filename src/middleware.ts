@@ -39,10 +39,12 @@ export async function middleware(req: NextRequest) {
     pathname === "/vendor" ||
     (pathname.startsWith("/vendor/") && !isVendorApply);
 
+  const callbackPath = `${pathname}${req.nextUrl.search}`;
+
   if (isVendorDesk) {
     if (!token) {
       const login = new URL("/login", req.nextUrl.origin);
-      login.searchParams.set("callbackUrl", pathname);
+      login.searchParams.set("callbackUrl", callbackPath);
       return NextResponse.redirect(login);
     }
     if (role !== "VENDOR" && !isStaff(role)) {
@@ -52,11 +54,16 @@ export async function middleware(req: NextRequest) {
 
   if (isVendorApply && secret && !token) {
     const login = new URL("/login", req.nextUrl.origin);
-    login.searchParams.set("callbackUrl", pathname);
+    login.searchParams.set("callbackUrl", callbackPath);
     return NextResponse.redirect(login);
   }
 
-  return NextResponse.next();
+  // Expose pathname to server layouts (apply vs desk gating).
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-pathname", pathname);
+  return NextResponse.next({
+    request: { headers: requestHeaders },
+  });
 }
 
 export const config = {

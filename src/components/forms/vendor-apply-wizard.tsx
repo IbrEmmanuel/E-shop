@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import {
   saveVendorApplicationDraftAction,
   submitApplicationAction,
@@ -96,6 +96,18 @@ export function VendorApplyWizard({
     saveVendorApplicationDraftAction,
     null as ActionResult | null,
   );
+  const lastSavedRef = useRef<ActionResult | null>(null);
+
+  useEffect(() => {
+    if (
+      draftState?.ok &&
+      draftState !== lastSavedRef.current &&
+      draftState.message === "Progress saved."
+    ) {
+      lastSavedRef.current = draftState;
+      setStep((s) => Math.min(6, s + 1));
+    }
+  }, [draftState]);
   const [submitState, submitAction, submitPending] = useActionState(
     submitApplicationAction,
     null as ActionResult | null,
@@ -201,7 +213,11 @@ export function VendorApplyWizard({
         className="card space-y-4 p-6"
         encType="multipart/form-data"
       >
-        <input type="hidden" name="wizardStep" value={step} />
+        <input
+          type="hidden"
+          name="wizardStep"
+          value={step < 6 ? Math.min(6, step + 1) : step}
+        />
 
         {step === 1 ? (
           <>
@@ -552,16 +568,6 @@ export function VendorApplyWizard({
               Submit for admin approval
             </Button>
           )}
-          {step < 6 ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setStep((s) => Math.min(6, s + 1))}
-            >
-              Next
-            </Button>
-          ) : null}
         </div>
       </form>
 
@@ -577,8 +583,14 @@ export function VendorApplyWizard({
             </Select>
           </div>
           <div>
-            <Label htmlFor="document">File (image)</Label>
-            <Input id="document" name="document" type="file" accept="image/*" required />
+            <Label htmlFor="document">File (image or PDF)</Label>
+            <Input
+              id="document"
+              name="document"
+              type="file"
+              accept="image/*,application/pdf"
+              required
+            />
           </div>
           <Button type="submit" size="sm" variant="outline" loading={docPending}>
             Upload document

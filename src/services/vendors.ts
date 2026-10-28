@@ -10,6 +10,7 @@ import {
 } from "@/lib/permissions";
 import { slugify, uniqueSlug } from "@/lib/slug";
 import { sendEmail } from "@/lib/email";
+import { siteUrl } from "@/lib/env";
 import { ensureVendorWallet } from "@/services/workspace";
 
 const applySchema = z.object({
@@ -177,11 +178,12 @@ export async function adminApproveApplication(
     meta: { applicationId, planId: plan.id },
   });
 
+  const deskUrl = siteUrl("/vendor");
   await sendEmail({
     to: application.contactEmail,
     subject: "Your shop is live — open your vendor desk",
-    html: `<p>Your store <strong>${vendor.storeName}</strong> is active.</p><p>Open your desk to list products, fulfil orders, and request payouts: <a href="/vendor">/vendor</a></p><p>Trial ends ${trialEnd.toLocaleDateString("en-NG")}.</p>`,
-    text: `Your store ${vendor.storeName} is active. Open /vendor to manage products, orders, and payouts. Trial ends ${trialEnd.toISOString()}.`,
+    html: `<p>Your store <strong>${vendor.storeName}</strong> is active.</p><p>Open your desk to list products, fulfil orders, and request payouts: <a href="${deskUrl}">${deskUrl}</a></p><p>Trial ends ${trialEnd.toLocaleDateString("en-NG")}.</p>`,
+    text: `Your store ${vendor.storeName} is active. Open ${deskUrl} to manage products, orders, and payouts. Trial ends ${trialEnd.toISOString()}.`,
   });
 
   return vendor;

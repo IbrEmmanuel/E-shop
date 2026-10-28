@@ -1,8 +1,13 @@
 import { listActivePlans } from "@/services/rentals";
+import { getSessionUser } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
+import { isStaffRole } from "@/lib/roles";
 import { buildMetadata } from "@/lib/seo";
+import { getOpenApplication } from "@/services/vendor-application";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
 
 export const metadata = buildMetadata({
   title: "Sell on E-Shop",
@@ -11,7 +16,92 @@ export const metadata = buildMetadata({
 });
 
 export default async function SellPage() {
-  const plans = await listActivePlans().catch(() => []);
+  const [plans, user] = await Promise.all([
+    listActivePlans().catch(() => []),
+    getSessionUser(),
+  ]);
+
+  const vendor = user
+    ? await prisma.vendor.findUnique({
+        where: { userId: user.id },
+        include: { rental: { select: { planId: true } } },
+      })
+    : null;
+  const application =
+    user && !vendor ? await getOpenApplication(user.id) : null;
+
+  const isVendor = Boolean(vendor) || user?.role === "VENDOR";
+  const isStaff = user ? isStaffRole(user.role) : false;
+  const appStatus = application?.status ?? null;
+  const appPending =
+    appStatus === "SUBMITTED" ||
+    appStatus === "UNDER_REVIEW" ||
+    appStatus === "CHANGES_REQUESTED";
+  const appDraft =
+    appStatus === "DRAFT" || appStatus === "REJECTED" || appStatus === null;
+
+  let primaryHref = "/vendor/apply";
+  let primaryLabel = "Apply to sell";
+  let secondaryHref: string | null = "/login?callbackUrl=%2Fvendor";
+  let secondaryLabel: string | null = "Sign in to vendor desk";
+  let statusNote: string | null = null;
+
+  if (!user) {
+    primaryHref = `/login?callbackUrl=${encodeURIComponent("/vendor/apply")}`;
+    primaryLabel = "Apply to sell";
+    secondaryHref = `/register?callbackUrl=${encodeURIComponent("/vendor/apply")}`;
+    secondaryLabel = "Create seller account";
+  } else if (isStaff && !vendor) {
+    primaryHref = "/admin/vendors";
+    primaryLabel = "Review applications";
+    secondaryHref = "/vendor";
+    secondaryLabel = "Inspect vendor desk";
+  } else if (isVendor || vendor) {
+    primaryHref = "/vendor";
+    primaryLabel = "Open vendor desk";
+    secondaryHref = "/vendor/products/new";
+    secondaryLabel = "Add a product";
+    statusNote = vendor
+      ? `Your shop “${vendor.storeName}” is live.`
+      : "Your vendor desk is ready.";
+  } else if (appPending) {
+    primaryHref = "/vendor/apply";
+    primaryLabel = "View application status";
+    secondaryHref = null;
+    secondaryLabel = null;
+    statusNote = `Application ${appStatus?.toLowerCase().replaceAll("_", " ")}. We’ll email you when it’s reviewed.`;
+  } else if (application && appDraft) {
+    primaryHref = "/vendor/apply";
+    primaryLabel = "Continue application";
+    secondaryHref = null;
+    secondaryLabel = null;
+    statusNote =
+      appStatus === "REJECTED"
+        ? "Your last application needs updates — continue below."
+        : "You have a draft application in progress.";
+  } else {
+    primaryHref = "/vendor/apply";
+    primaryLabel = "Apply to sell";
+    secondaryHref = null;
+    secondaryLabel = null;
+  }
+
+  const planCtaHref = (planId: string) => {
+    if (isVendor || vendor) return "/vendor";
+    if (isStaff && !vendor) return "/admin/vendors";
+    const apply = `/vendor/apply?plan=${planId}`;
+    if (!user) {
+      return `/login?callbackUrl=${encodeURIComponent(apply)}`;
+    }
+    return apply;
+  };
+
+  const planCtaLabel = (name: string) => {
+    if (isVendor || vendor) return "Open desk";
+    if (appPending) return "View status";
+    if (application && appDraft) return `Continue with ${name}`;
+    return `Choose ${name}`;
+  };
 
   return (
     <div>
@@ -29,13 +119,20 @@ export default async function SellPage() {
               store setup, then submit for admin approval. After approval, list
               products, fulfil orders, and request payouts from your vendor desk.
             </p>
+            {statusNote ? (
+              <Alert tone="info" className="mt-6 max-w-md">
+                {statusNote}
+              </Alert>
+            ) : null}
             <div className="mt-8 flex flex-wrap gap-3">
-              <Button asChild href="/vendor/apply" variant="accent" size="lg">
-                Apply to sell
+              <Button asChild href={primaryHref} variant="accent" size="lg">
+                {primaryLabel}
               </Button>
-              <Button asChild href="/vendor" variant="outline" size="lg">
-                Vendor desk
-              </Button>
+              {secondaryHref && secondaryLabel ? (
+                <Button asChild href={secondaryHref} variant="outline" size="lg">
+                  {secondaryLabel}
+                </Button>
+              ) : null}
             </div>
           </div>
           <div className="card min-h-[16rem] p-8">
@@ -68,12 +165,18 @@ export default async function SellPage() {
               } catch {
                 features = [];
               }
+              const selected =
+                application?.rentalPlanId === plan.id ||
+                vendor?.rental?.planId === plan.id;
               return (
                 <article
                   key={plan.id}
                   className="card flex flex-col p-6 transition-[box-shadow,border-color] duration-[var(--transition-speed)] hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-md)]"
                 >
-                  <h3 className="type-h2 !text-xl">{plan.name}</h3>
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="type-h2 !text-xl">{plan.name}</h3>
+                    {selected ? <Badge tone="success">Selected</Badge> : null}
+                  </div>
                   <p className="mt-3 text-3xl font-medium tabular-nums text-[var(--text-primary)]">
                     {formatMoney(plan.monthlyPriceMinor, plan.currency)}
                     <span className="text-sm font-normal text-[var(--text-muted)]">
@@ -96,11 +199,11 @@ export default async function SellPage() {
                   </ul>
                   <Button
                     asChild
-                    href={`/vendor/apply?plan=${plan.id}`}
+                    href={planCtaHref(plan.id)}
                     variant="accent"
                     className="mt-6"
                   >
-                    Choose {plan.name}
+                    {planCtaLabel(plan.name)}
                   </Button>
                 </article>
               );
@@ -108,8 +211,11 @@ export default async function SellPage() {
           </div>
         )}
         <p className="mt-10 text-sm text-[var(--color-soft-muted)]">
-          Already applied? We email you when your shop is reviewed. Catalog ops
-          are handled from the platform admin console.
+          {appPending
+            ? "We’ll email you when your shop application is reviewed."
+            : isVendor || vendor
+              ? "Manage catalog, orders, rent, and payouts from your vendor desk."
+              : "Already applied? Continue from Apply to sell — we’ll email you when your shop is reviewed."}
         </p>
       </section>
     </div>

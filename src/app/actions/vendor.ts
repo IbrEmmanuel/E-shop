@@ -91,7 +91,10 @@ export async function uploadVendorDocumentAction(
     if (!(file instanceof File) || file.size <= 0) {
       return { ok: false, error: "Choose a document image to upload." };
     }
-    const up = await saveUpload(file, { folder: "vendor-kyc" });
+    const up = await saveUpload(file, {
+      folder: "vendor-kyc",
+      allowPdf: true,
+    });
     if (!up.ok) return { ok: false, error: up.reason };
     await addApplicationDocument(user, {
       docType,

@@ -4,11 +4,16 @@ import path from "path";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getEnv, remoteStorageConfigured } from "@/lib/env";
 
-const ALLOWED_MIME = new Set([
+const ALLOWED_IMAGE_MIME = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
   "image/gif",
+]);
+
+const ALLOWED_DOC_MIME = new Set([
+  ...ALLOWED_IMAGE_MIME,
+  "application/pdf",
 ]);
 
 const MIME_EXT: Record<string, string> = {
@@ -16,6 +21,7 @@ const MIME_EXT: Record<string, string> = {
   "image/png": "png",
   "image/webp": "webp",
   "image/gif": "gif",
+  "application/pdf": "pdf",
 };
 
 /** 12 MiB — enough for high-res product photos at catalog scale */
@@ -28,15 +34,21 @@ export type SaveUploadResult =
   | { ok: true; url: string; storage: "local" | "remote" | "inline" }
   | { ok: false; reason: string };
 
-function validateImage(file: {
-  type: string;
-  size: number;
-}): string | null {
-  if (!ALLOWED_MIME.has(file.type)) {
-    return `Unsupported image type: ${file.type}. Allowed: JPEG, PNG, WebP, GIF.`;
+function validateUpload(
+  file: {
+    type: string;
+    size: number;
+  },
+  opts?: { allowPdf?: boolean },
+): string | null {
+  const allowed = opts?.allowPdf ? ALLOWED_DOC_MIME : ALLOWED_IMAGE_MIME;
+  if (!allowed.has(file.type)) {
+    return opts?.allowPdf
+      ? `Unsupported file type: ${file.type}. Allowed: JPEG, PNG, WebP, GIF, PDF.`
+      : `Unsupported image type: ${file.type}. Allowed: JPEG, PNG, WebP, GIF.`;
   }
   if (file.size <= 0 || file.size > MAX_UPLOAD_BYTES) {
-    return `Image must be between 1 byte and ${MAX_UPLOAD_BYTES} bytes.`;
+    return `File must be between 1 byte and ${MAX_UPLOAD_BYTES} bytes.`;
   }
   return null;
 }
@@ -83,9 +95,13 @@ export async function saveUpload(
     size: number;
     arrayBuffer(): Promise<ArrayBuffer>;
   },
-  opts?: { folder?: string },
+  opts?: { folder?: string; allowPdf?: boolean },
 ): Promise<SaveUploadResult> {
-  const err = validateImage(file);
+  const allowPdf =
+    opts?.allowPdf ||
+    opts?.folder === "vendor-kyc" ||
+    opts?.folder === "vendor-docs";
+  const err = validateUpload(file, { allowPdf });
   if (err) return { ok: false, reason: err };
 
   const ext = MIME_EXT[file.type] ?? "bin";
@@ -161,5 +177,5 @@ export async function saveUpload(
 }
 
 export function isAllowedImageMime(mime: string): boolean {
-  return ALLOWED_MIME.has(mime);
+  return ALLOWED_IMAGE_MIME.has(mime);
 }

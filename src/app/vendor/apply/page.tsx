@@ -26,12 +26,6 @@ export default async function VendorApplyPage({
 }: {
   searchParams: SP;
 }) {
-  const user = await getSessionUser();
-  if (!user) redirect("/login?callbackUrl=/vendor/apply");
-
-  const existingVendor = await getVendorByUserId(user.id);
-  if (existingVendor) redirect("/vendor");
-
   const sp = await searchParams;
   const submitted = sp.submitted === "1";
   const verified = sp.verified === "1";
@@ -39,6 +33,21 @@ export default async function VendorApplyPage({
   const preferredPlanId = Array.isArray(preferredPlanRaw)
     ? preferredPlanRaw[0]
     : preferredPlanRaw;
+
+  const user = await getSessionUser();
+  if (!user) {
+    const qs = new URLSearchParams();
+    if (preferredPlanId) qs.set("plan", preferredPlanId);
+    if (submitted) qs.set("submitted", "1");
+    if (verified) qs.set("verified", "1");
+    const dest = qs.size
+      ? `/vendor/apply?${qs.toString()}`
+      : "/vendor/apply";
+    redirect(`/login?callbackUrl=${encodeURIComponent(dest)}`);
+  }
+
+  const existingVendor = await getVendorByUserId(user.id);
+  if (existingVendor) redirect("/vendor");
 
   const [plans, categories, dbUser] = await Promise.all([
     listActivePlans().catch(() => []),

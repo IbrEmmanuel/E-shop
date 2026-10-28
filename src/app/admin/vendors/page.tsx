@@ -59,6 +59,7 @@ export default async function VendorOverviewPage() {
           include: {
             user: { select: { email: true, name: true } },
             rentalPlan: true,
+            documents: { orderBy: { createdAt: "desc" } },
           },
         })
       : [];
@@ -185,23 +186,103 @@ export default async function VendorOverviewPage() {
 
       {applications.length > 0 ? (
         <section className="space-y-4">
-          <h2
-            className="text-2xl"
-          >
-            Applications queue
-          </h2>
+          <h2 className="text-2xl">Applications queue</h2>
           <ul className="space-y-4">
             {applications.map((app) => (
-              <li key={app.id} className="card space-y-3 p-5">
+              <li key={app.id} className="card space-y-4 p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold">{app.storeName}</p>
                     <p className="text-sm text-[var(--color-text-muted)]">
-                      {app.user.email} · {app.rentalPlan?.name}
+                      {app.user.name || "Seller"} · {app.user.email} ·{" "}
+                      {app.rentalPlan?.name ?? "No plan"}
                     </p>
                   </div>
                   <Badge tone="warning">{app.status}</Badge>
                 </div>
+                <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                  <div>
+                    <dt className="text-[var(--color-text-muted)]">Business</dt>
+                    <dd className="font-medium">
+                      {app.businessName || "—"}
+                      {app.businessType ? ` · ${app.businessType}` : ""}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[var(--color-text-muted)]">Contact</dt>
+                    <dd className="font-medium">
+                      {app.contactEmail}
+                      {app.contactPhone ? ` · ${app.contactPhone}` : ""}
+                    </dd>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <dt className="text-[var(--color-text-muted)]">Address</dt>
+                    <dd className="font-medium">
+                      {[
+                        app.businessAddress,
+                        app.businessCity,
+                        app.businessState,
+                        app.businessCountry,
+                      ]
+                        .filter(Boolean)
+                        .join(", ") || "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[var(--color-text-muted)]">Payout bank</dt>
+                    <dd className="font-medium">
+                      {app.payoutBankName || "—"}
+                      {app.payoutAccountNumber
+                        ? ` · ${app.payoutAccountNumber}`
+                        : ""}
+                      {app.payoutAccountName
+                        ? ` (${app.payoutAccountName})`
+                        : ""}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[var(--color-text-muted)]">Plan</dt>
+                    <dd className="font-medium">
+                      {app.rentalPlan
+                        ? `${app.rentalPlan.name} · ${formatMoney(app.rentalPlan.monthlyPriceMinor, app.rentalPlan.currency)}/mo`
+                        : "—"}
+                    </dd>
+                  </div>
+                  {app.description ? (
+                    <div className="sm:col-span-2">
+                      <dt className="text-[var(--color-text-muted)]">
+                        Store description
+                      </dt>
+                      <dd className="mt-1 text-[var(--color-text-secondary)]">
+                        {app.description}
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+                {app.documents.length > 0 ? (
+                  <div>
+                    <p className="mb-2 text-sm font-semibold">KYC documents</p>
+                    <ul className="flex flex-wrap gap-2">
+                      {app.documents.map((doc) => (
+                        <li key={doc.id}>
+                          <a
+                            href={doc.fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="button button--outline button--sm"
+                          >
+                            {doc.label || doc.docType}
+                            {doc.fileName ? ` · ${doc.fileName}` : ""}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-sm text-[var(--color-warning)]">
+                    No KYC documents uploaded yet.
+                  </p>
+                )}
                 <AdminVendorActions applicationId={app.id} />
               </li>
             ))}

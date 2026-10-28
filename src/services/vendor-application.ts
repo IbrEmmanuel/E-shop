@@ -265,7 +265,10 @@ export async function submitVendorApplication(
   });
 
   const admins = await prisma.user.findMany({
-    where: { role: "ADMIN", status: "ACTIVE" },
+    where: {
+      role: { in: ["ADMIN", "SUPER_ADMIN"] },
+      status: "ACTIVE",
+    },
     select: { email: true },
     take: 10,
   });
