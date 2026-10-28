@@ -86,7 +86,9 @@ export default async function SellPage() {
                     </p>
                   ) : null}
                   <ul className="mt-4 flex-1 space-y-1.5 text-sm text-[var(--color-soft)]">
-                    <li>{plan.maxProducts} products</li>
+                    <li>
+                      Up to {plan.maxProducts.toLocaleString("en-NG")} products
+                    </li>
                     <li>{plan.trialDays}-day trial</li>
                     {features.map((f) => (
                       <li key={f}>{f}</li>

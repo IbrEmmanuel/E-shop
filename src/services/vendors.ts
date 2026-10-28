@@ -216,23 +216,8 @@ export async function adminEnsurePlatformShop(
   });
   if (existing) return existing;
 
-  const plan =
-    (await prisma.shopRentalPlan.findFirst({
-      where: { isActive: true },
-      orderBy: { sortOrder: "asc" },
-    })) ??
-    (await prisma.shopRentalPlan.create({
-      data: {
-        slug: "starter",
-        name: "Starter",
-        description: "Platform default plan",
-        monthlyPriceMinor: 1500000,
-        maxProducts: 1_000_000,
-        trialDays: 365,
-        featuresJson: '["Platform shop"]',
-        sortOrder: 0,
-      },
-    }));
+  const { getOrCreatePlatformPlan } = await import("@/services/rentals");
+  const plan = await getOrCreatePlatformPlan();
 
   const categoryCount = await prisma.category.count();
   if (categoryCount === 0) {

@@ -1,12 +1,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { RentPayForm } from "@/components/forms/rent-pay-form";
+import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getSessionUser } from "@/lib/auth";
+import { paymentsConfigured } from "@/lib/env";
 import { formatMoney } from "@/lib/money";
+import { getSettlementAccounts } from "@/lib/payments/settlement";
 import { isStaffRole } from "@/lib/roles";
 import { resolveVendorDesk, vendorDeskQuery } from "@/lib/vendor-desk";
 import { prisma } from "@/lib/db";
+import { checkVendorProductQuota } from "@/services/rentals";
 import { getVendorMetrics } from "@/services/vendors";
 import {
   ensureVendorWallet,
@@ -36,7 +41,7 @@ export default async function VendorOverviewPage({
   const { vendor, inspecting } = desk;
   const q = vendorDeskQuery(vendor.id, inspecting);
 
-  const [metrics, stats, wallet, recentOrders] = await Promise.all([
+  const [metrics, stats, wallet, recentOrders, quota] = await Promise.all([
     getVendorMetrics(user, vendor.id),
     getVendorWorkspaceStats(vendor.id),
     ensureVendorWallet(vendor.id),
@@ -48,6 +53,7 @@ export default async function VendorOverviewPage({
         order: { select: { orderNumber: true, createdAt: true } },
       },
     }),
+    checkVendorProductQuota(vendor.id, 0).catch(() => null),
   ]);
 
   return (
@@ -70,13 +76,23 @@ export default async function VendorOverviewPage({
         </p>
       </header>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="account-panel">
           <p className="text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
             Products
           </p>
           <p className="mt-2 text-2xl font-semibold tabular-nums">
             {metrics.publishedCount}/{metrics.productCount}
+          </p>
+        </div>
+        <div className="account-panel">
+          <p className="text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
+            Plan capacity
+          </p>
+          <p className="mt-2 text-2xl font-semibold tabular-nums">
+            {quota
+              ? `${quota.used.toLocaleString("en-NG")}/${quota.max.toLocaleString("en-NG")}`
+              : "—"}
           </p>
         </div>
         <div className="account-panel">
@@ -96,6 +112,47 @@ export default async function VendorOverviewPage({
           </p>
         </div>
       </div>
+
+      {vendor.rental ? (
+        <section className="account-panel mt-6 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Monthly rental</h2>
+              <p className="text-sm text-[var(--color-text-secondary)]">
+                {vendor.rental.plan.name} ·{" "}
+                {formatMoney(
+                  vendor.rental.plan.monthlyPriceMinor,
+                  vendor.rental.plan.currency,
+                )}
+                /mo
+              </p>
+            </div>
+            <Badge
+              tone={
+                vendor.rental.status === "ACTIVE" ||
+                vendor.rental.status === "TRIAL"
+                  ? "success"
+                  : "warning"
+              }
+            >
+              {vendor.rental.status}
+            </Badge>
+          </div>
+          <Alert tone="info">
+            Transfer rent to{" "}
+            {getSettlementAccounts()
+              .map((a) => `${a.bank} ${a.accountNumber}`)
+              .join(" · ")}
+            . Generate an invoice for a unique narration reference.
+          </Alert>
+          {!inspecting ? (
+            <RentPayForm
+              vendorId={vendor.id}
+              paystackAvailable={paymentsConfigured()}
+            />
+          ) : null}
+        </section>
+      ) : null}
 
       <div className="mt-6 flex flex-wrap gap-3">
         <Button asChild href={`/vendor/products${q}`} variant="primary">

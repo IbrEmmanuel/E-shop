@@ -8,7 +8,10 @@ import { prisma } from "@/lib/db";
 import { parseMoneyToMinor } from "@/lib/money";
 import { slugify, uniqueSlug } from "@/lib/slug";
 import { writeAuditLog } from "@/lib/audit";
-import { checkRentalAllowsPublishing } from "@/services/rentals";
+import {
+  checkRentalAllowsPublishing,
+  checkVendorProductQuota,
+} from "@/services/rentals";
 import { advanceVendorOrderStatus } from "@/services/vendor-orders";
 import type { VendorOrderStatus } from "@/lib/types";
 import { requireOwnedVendor } from "@/services/vendors";
@@ -190,6 +193,11 @@ export async function createProductAction(
     const uploaded = await saveUpload(imageFile, { folder: "products" });
     if (!uploaded.ok) return { ok: false, error: uploaded.reason };
     imageUrl = uploaded.url;
+  }
+
+  const quota = await checkVendorProductQuota(vendor.id, 1);
+  if (!quota.allowed) {
+    return { ok: false, error: quota.reason || "Product limit reached." };
   }
 
   let status = parsed.data.status;

@@ -35,6 +35,10 @@ export default async function VendorApplyPage({
   const sp = await searchParams;
   const submitted = sp.submitted === "1";
   const verified = sp.verified === "1";
+  const preferredPlanRaw = sp.plan;
+  const preferredPlanId = Array.isArray(preferredPlanRaw)
+    ? preferredPlanRaw[0]
+    : preferredPlanRaw;
 
   const [plans, categories, dbUser] = await Promise.all([
     listActivePlans().catch(() => []),
@@ -50,9 +54,31 @@ export default async function VendorApplyPage({
     }),
   ]);
 
+  const chosenPlanId =
+    preferredPlanId && plans.some((p) => p.id === preferredPlanId)
+      ? preferredPlanId
+      : preferredPlanId && plans.some((p) => p.slug === preferredPlanId)
+        ? plans.find((p) => p.slug === preferredPlanId)!.id
+        : null;
+
   let application = await getOpenApplication(user.id);
   if (!application) {
     application = await ensureDraftApplication(user);
+  }
+
+  if (
+    chosenPlanId &&
+    application.status === "DRAFT" &&
+    application.rentalPlanId !== chosenPlanId
+  ) {
+    application = await prisma.vendorApplication.update({
+      where: { id: application.id },
+      data: { rentalPlanId: chosenPlanId },
+      include: {
+        documents: { orderBy: { createdAt: "desc" } },
+        rentalPlan: true,
+      },
+    });
   }
 
   return (

@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { SectionHeader } from "@/components/dashboard/section-header";
 import { VendorTabs } from "@/components/dashboard/vendor-tabs";
 import { RentPayForm } from "@/components/forms/rent-pay-form";
+import { ConfirmRentButton } from "@/components/vendor/confirm-rent-button";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { paymentsConfigured } from "@/lib/env";
 import { formatMoney } from "@/lib/money";
 import { getSettlementAccounts } from "@/lib/payments/settlement";
 import { getVendorRental } from "@/services/rentals";
@@ -200,7 +202,9 @@ export default async function AdminVendorSettingsPage({
                             rental.plan.monthlyPriceMinor,
                             rental.plan.currency,
                           )}{" "}
-                          / month · up to {rental.plan.maxProducts} products
+                          / month · up to{" "}
+                          {rental.plan.maxProducts.toLocaleString("en-NG")}{" "}
+                          products
                         </p>
                       </div>
                       <Badge
@@ -232,9 +236,13 @@ export default async function AdminVendorSettingsPage({
                       {getSettlementAccounts()
                         .map((a) => `${a.bank} ${a.accountNumber}`)
                         .join(" · ")}
-                      . Use the store name as the narration.
+                      . Generate an invoice below and use that reference as the
+                      narration.
                     </Alert>
-                    <RentPayForm />
+                    <RentPayForm
+                      vendorId={vendor.id}
+                      paystackAvailable={paymentsConfigured()}
+                    />
                     <div>
                       <h3 className="mb-3 font-semibold">Recent payments</h3>
                       {payments.length === 0 ? (
@@ -246,7 +254,7 @@ export default async function AdminVendorSettingsPage({
                           {payments.map((p) => (
                             <li
                               key={p.id}
-                              className="flex justify-between gap-3 px-4 py-3 text-sm"
+                              className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm"
                               suppressHydrationWarning
                             >
                               <span>
@@ -257,10 +265,18 @@ export default async function AdminVendorSettingsPage({
                                 {p.periodEnd.toLocaleDateString("en-NG", {
                                   timeZone: "Africa/Lagos",
                                 })}
+                                {p.idempotencyKey ? (
+                                  <span className="mt-0.5 block font-mono text-xs text-[var(--color-text-muted)]">
+                                    {p.idempotencyKey}
+                                  </span>
+                                ) : null}
                               </span>
-                              <span>
+                              <span className="flex items-center gap-2">
                                 {formatMoney(p.amountMinor, p.currency)} ·{" "}
                                 {p.status}
+                                {p.status === "PENDING" ? (
+                                  <ConfirmRentButton paymentId={p.id} />
+                                ) : null}
                               </span>
                             </li>
                           ))}

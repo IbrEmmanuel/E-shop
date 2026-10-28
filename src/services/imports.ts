@@ -12,6 +12,7 @@ import {
   type SessionUser,
 } from "@/lib/permissions";
 import { slugify, uniqueSlug } from "@/lib/slug";
+import { checkVendorProductQuota } from "@/services/rentals";
 import { requireOwnedVendor } from "@/services/vendors";
 
 /** CSV / XLSX template v1 column headers (order matters for export). */
@@ -414,6 +415,7 @@ export async function processImportBatch(
   let succeeded = 0;
   let failed = 0;
   let skipped = 0;
+  let remainingSlots = (await checkVendorProductQuota(vendor.id, 0)).remaining;
 
   // Always take from the front: processed rows leave the valid/warning set.
   for (;;) {
@@ -527,6 +529,20 @@ export async function processImportBatch(
               }
             }
           } else {
+            if (remainingSlots <= 0) {
+              await tx.importBatchRow.update({
+                where: { id: row.id },
+                data: {
+                  status: "failed",
+                  errorsJson: JSON.stringify([
+                    "Product limit reached for this rental plan",
+                  ]),
+                },
+              });
+              failed++;
+              continue;
+            }
+
             const base = slugify(payload.title) || "product";
             let slug = uniqueSlug(base, sku.toLowerCase());
             let n = 0;
@@ -554,6 +570,7 @@ export async function processImportBatch(
                 seoDescription: payload.seo_description || null,
               },
             });
+            remainingSlots -= 1;
 
             if (payload.image_url) {
               await tx.productImage.create({

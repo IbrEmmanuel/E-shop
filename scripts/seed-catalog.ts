@@ -468,10 +468,6 @@ async function ensureVendor() {
     orderBy: { createdAt: "asc" },
   });
   if (vendor) {
-    await prisma.shopRentalPlan.updateMany({
-      where: { slug: "starter" },
-      data: { maxProducts: 1_000_000 },
-    });
     return vendor;
   }
 
@@ -484,25 +480,20 @@ async function ensureVendor() {
   }
 
   const plan =
-    (await prisma.shopRentalPlan.findFirst({
-      where: { isActive: true },
-      orderBy: { sortOrder: "asc" },
-    })) ??
+    (await prisma.shopRentalPlan.findUnique({ where: { slug: "platform" } })) ??
     (await prisma.shopRentalPlan.create({
       data: {
-        slug: "starter",
-        name: "Starter",
-        monthlyPriceMinor: 1_500_000,
+        slug: "platform",
+        name: "Platform",
+        description: "Internal unlimited catalog for the official marketplace shop.",
+        monthlyPriceMinor: 0,
         maxProducts: 1_000_000,
-        trialDays: 365,
-        featuresJson: '["Catalog"]',
+        trialDays: 3650,
+        featuresJson: '["Platform shop"]',
+        sortOrder: 99,
+        isActive: false,
       },
     }));
-
-  await prisma.shopRentalPlan.update({
-    where: { id: plan.id },
-    data: { maxProducts: 1_000_000 },
-  });
 
   const now = new Date();
   const end = new Date(now);
