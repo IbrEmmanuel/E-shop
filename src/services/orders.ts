@@ -5,6 +5,11 @@ import type { OrderStatus, PaymentStatus } from "@/lib/types";
 import { prisma } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit";
 import { assertNonNegativeMinor } from "@/lib/money";
+import {
+  assertOrderTransition,
+  assertPaymentTransition,
+  customerMayCancelOrder,
+} from "@/lib/order-lifecycle";
 import { requireAuth, type SessionUser } from "@/lib/permissions";
 import { verifyPayment } from "@/lib/payments/adapter";
 import { getCartTotals } from "@/services/cart";
@@ -536,9 +541,10 @@ export async function cancelUnpaidOrder(opts: {
     include: { payments: { take: 1, orderBy: { createdAt: "desc" } } },
   });
   if (!order) return { ok: false, error: "Order not found" };
-  if (order.status !== "PENDING_PAYMENT") {
+  if (!customerMayCancelOrder(order.status)) {
     return { ok: false, error: "Only unpaid orders can be cancelled this way." };
   }
+  assertOrderTransition(order.status, "CANCELLED");
 
   await releaseOrderReservations(
     order.id,
@@ -564,6 +570,7 @@ export async function cancelUnpaidOrder(opts: {
       data: {
         orderId: order.id,
         status: "CANCELLED",
+        actorId: opts.actorId ?? null,
         note:
           opts.note?.trim() ||
           (opts.asExpire
@@ -708,6 +715,15 @@ export async function advanceOrderFulfillment(opts: {
     return { ok: false, error: "Order is closed." };
   }
 
+  try {
+    assertOrderTransition(order.status, opts.status);
+  } catch {
+    return {
+      ok: false,
+      error: `Cannot move order from ${order.status} to ${opts.status}.`,
+    };
+  }
+
   const now = new Date();
   const data: {
     status: OrderStatus;
@@ -743,6 +759,7 @@ export async function advanceOrderFulfillment(opts: {
         orderId: order.id,
         status: opts.status,
         note: opts.note?.trim() || defaultNote,
+        actorId: opts.adminUserId,
       },
     });
     return next;
@@ -1025,6 +1042,12 @@ export async function refundOrder(opts: {
     return { ok: false, error: "Unpaid orders should be cancelled, not refunded." };
   }
 
+  try {
+    assertOrderTransition(order.status, "REFUNDED");
+  } catch {
+    return { ok: false, error: `Cannot refund order in status ${order.status}.` };
+  }
+
   const updated = await prisma.$transaction(async (tx) => {
     const next = await tx.order.update({
       where: { id: order.id },
@@ -1037,6 +1060,11 @@ export async function refundOrder(opts: {
     });
 
     if (order.payments[0]) {
+      try {
+        assertPaymentTransition(order.payments[0].status, "REFUNDED");
+      } catch {
+        /* already refunded or closed — still sync DB */
+      }
       await tx.payment.update({
         where: { id: order.payments[0].id },
         data: { status: "REFUNDED" satisfies PaymentStatus },
@@ -1070,6 +1098,7 @@ export async function refundOrder(opts: {
       data: {
         orderId: order.id,
         status: "REFUNDED",
+        actorId: opts.adminUserId,
         note:
           opts.note?.trim() ||
           "Order refunded by admin. Offline bank refund must be completed separately; ledger clawed back.",
@@ -1110,10 +1139,12 @@ export async function confirmDeliveryByCustomer(opts: {
   });
   if (!order) return { ok: false, error: "Order not found" };
   if (order.status === "DELIVERED") return { ok: true, order };
-  if (order.status !== "SHIPPED" && order.status !== "PROCESSING") {
+  try {
+    assertOrderTransition(order.status, "DELIVERED");
+  } catch {
     return {
       ok: false,
-      error: "Only shipped orders can be confirmed as delivered.",
+      error: "Only shipped or processing orders can be confirmed as delivered.",
     };
   }
 
@@ -1133,6 +1164,7 @@ export async function confirmDeliveryByCustomer(opts: {
       data: {
         orderId: order.id,
         status: "DELIVERED",
+        actorId: opts.userId,
         note: "Customer confirmed delivery.",
       },
     });

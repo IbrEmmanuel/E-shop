@@ -164,7 +164,7 @@ export function AuthParticleOrb({
       const projected: { x: number; y: number; z: number; s: number }[] = [];
       const sizeBoost = isHero ? 1.22 : 1;
       for (const p of particles) {
-        let x = p.ox * cosY - p.oz * sinY;
+        const x = p.ox * cosY - p.oz * sinY;
         let z = p.ox * sinY + p.oz * cosY;
         let y = p.oy;
         const y2 = y * cosX - z * sinX;

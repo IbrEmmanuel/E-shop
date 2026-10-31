@@ -150,10 +150,10 @@ export default async function VendorSalesOrdersPage({
                         ))}
                       </ul>
                       <Link
-                        href={`/account/orders/${vo.order.orderNumber}`}
+                        href={`/admin/orders/${vo.order.orderNumber}`}
                         className="inline-block text-sm font-semibold text-[var(--color-primary)] underline"
                       >
-                        Customer tracking view
+                        Order detail
                       </Link>
                     </div>
                     <div className="flex flex-col items-end gap-3">

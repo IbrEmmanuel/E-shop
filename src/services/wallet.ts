@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit";
+import { commissionFromGross } from "@/lib/commission";
 import { requireAdmin, requireAuth, type SessionUser } from "@/lib/permissions";
 import { ensureVendorWallet } from "@/services/workspace";
 
 /**
- * Credit each vendor's wallet for a paid order (idempotent per vendorOrderId).
- * Net = vendorOrder.totalMinor - platform commission.
+ * Credit each vendor's wallet for a delivered order (idempotent per vendorOrderId).
+ * Commission is calculated on vendorOrder.totalMinor (item gross, not platform shipping).
+ * Default rate: vendor.commissionBps (1000 = 10.00%) unless overridden.
  */
 export async function settleVendorEarnings(orderId: string): Promise<void> {
   const vendorOrders = await prisma.vendorOrder.findMany({
@@ -21,10 +23,10 @@ export async function settleVendorEarnings(orderId: string): Promise<void> {
     if (existing) continue;
 
     const commissionBps = vo.vendor.commissionBps ?? 1000;
-    const commissionMinor = Math.floor(
-      (vo.totalMinor * commissionBps) / 10_000,
-    );
-    const netMinor = Math.max(0, vo.totalMinor - commissionMinor);
+    const { commissionMinor, vendorNetMinor: netMinor } = commissionFromGross({
+      grossMinor: vo.totalMinor,
+      commissionBps,
+    });
     if (netMinor <= 0) continue;
 
     const wallet = await ensureVendorWallet(vo.vendorId);
@@ -34,6 +36,15 @@ export async function settleVendorEarnings(orderId: string): Promise<void> {
         where: { referenceId },
       });
       if (again) return;
+
+      await tx.vendorOrder.update({
+        where: { id: vo.id },
+        data: {
+          commissionBpsSnapshot: commissionBps,
+          commissionMinor,
+          vendorNetMinor: netMinor,
+        },
+      });
 
       const updated = await tx.vendorWallet.update({
         where: { id: wallet.id },

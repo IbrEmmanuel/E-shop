@@ -73,5 +73,7 @@ export const config = {
     "/super/:path*",
     "/vendor",
     "/vendor/:path*",
+    "/account",
+    "/account/:path*",
   ],
 };

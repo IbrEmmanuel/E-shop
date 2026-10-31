@@ -1,6 +1,10 @@
 import type { Order, VendorOrder } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit";
+import {
+  assertOrderTransition,
+  assertVendorOrderTransition,
+} from "@/lib/order-lifecycle";
 import { requireAuth, type SessionUser } from "@/lib/permissions";
 import type { OrderStatus, VendorOrderStatus } from "@/lib/types";
 import {
@@ -139,6 +143,14 @@ export async function advanceVendorOrderStatus(opts: {
       error: `Cannot move from ${vendorOrderTabLabel(existing.status)} to ${vendorOrderTabLabel(opts.status)}.`,
     };
   }
+  try {
+    assertVendorOrderTransition(existing.status, opts.status);
+  } catch {
+    return {
+      ok: false,
+      error: `Invalid fulfilment transition ${existing.status} → ${opts.status}.`,
+    };
+  }
 
   const now = new Date();
   const result = await prisma.$transaction(async (tx) => {
@@ -169,6 +181,11 @@ export async function advanceVendorOrderStatus(opts: {
 
     let order = existing.order;
     if (parentPatch) {
+      try {
+        assertOrderTransition(existing.order.status, parentPatch.status);
+      } catch {
+        // Same high-level status or already advanced — still record history.
+      }
       order = await tx.order.update({
         where: { id: existing.orderId },
         data: {
@@ -182,6 +199,7 @@ export async function advanceVendorOrderStatus(opts: {
           orderId: existing.orderId,
           status: parentPatch.historyStatus,
           note: parentPatch.note,
+          actorId: opts.user.id,
         },
       });
     } else if (opts.status === "PACKAGED") {
@@ -190,6 +208,7 @@ export async function advanceVendorOrderStatus(opts: {
           orderId: existing.orderId,
           status: "PROCESSING",
           note: `${existing.vendor.storeName} marked items as packaged.`,
+          actorId: opts.user.id,
         },
       });
     }

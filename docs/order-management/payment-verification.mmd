@@ -1,0 +1,15 @@
+flowchart TD
+  A[Create Payment row] --> B[Unique idempotencyKey + providerRef]
+  B --> C{Method}
+  C -- Paystack --> D[initializePayment server secret]
+  C -- Bank / OPay / UBA --> E[Show settlement accounts]
+  D --> F[Customer pays hosted]
+  E --> G[Customer pays offline + uploads proof]
+  F --> H[Webhook or verify API]
+  G --> I[Admin confirmBankTransfer]
+  H --> J{HMAC / amount / currency / order match?}
+  I --> J
+  J -- No --> K[FAILED or investigation OPEN]
+  J -- Yes --> L[finalizeOrderPaid idempotent]
+  L --> M[Payment SUCCEEDED Order PAID]
+  M --> N[PaymentWebhookEvent unique provider+eventId]

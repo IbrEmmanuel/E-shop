@@ -186,10 +186,10 @@ export default async function AdminOrdersPage() {
                       <RefundOrderButton orderId={o.id} />
                     ) : null}
                     <Link
-                      href={`/account/orders/${o.orderNumber}`}
+                      href={`/admin/orders/${o.orderNumber}`}
                       className="text-sm font-semibold underline"
                     >
-                      Track
+                      Detail
                     </Link>
                   </div>
                 </div>

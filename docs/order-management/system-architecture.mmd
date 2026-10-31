@@ -1,0 +1,23 @@
+flowchart TD
+  A[E-Shop Next.js app] --> B[Customer portal]
+  A --> C[Vendor portal]
+  A --> D[Admin / Super portal]
+
+  B --> E[Server actions + services]
+  C --> E
+  D --> E
+
+  E --> F[Auth.js JWT + RBAC]
+  E --> G[orders.ts / vendor-orders.ts]
+  E --> H[payments adapter + settlement]
+  E --> I[products / cart / inventory]
+  E --> J[email outbox + order-notifications]
+
+  F --> K[(Prisma DB)]
+  G --> K
+  H --> K
+  I --> K
+  J --> K
+
+  H --> L[Paystack / bank transfer]
+  J --> M[Resend or local outbox]

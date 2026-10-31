@@ -1,0 +1,28 @@
+flowchart TD
+  A[Browse /shop /search] --> B[Product detail]
+  B --> C[Add to cart]
+  C --> D{Authenticated?}
+  D -- No --> E[Login / register callbackUrl=/checkout]
+  E --> F[Review cart]
+  D -- Yes --> F
+  F --> G[Server getCartTotals stock + prices]
+  G --> H{In stock?}
+  H -- No --> I[Show unavailable lines]
+  I --> F
+  H -- Yes --> J[Shipping form + delivery quote]
+  J --> K[placeOrderAction idempotencyKey]
+  K --> L[Create Order + VendorOrders + reserve stock]
+  L --> M[Select payment method]
+  M --> N{Paystack configured?}
+  N -- Yes --> O[initializePayment]
+  N -- No --> P[Bank transfer REQUIRES_ACTION]
+  O --> Q[Provider / webhook verify]
+  P --> R[Customer uploads proof]
+  R --> S[Admin confirmTransfer]
+  Q --> T{Verified amount + currency + ref?}
+  S --> T
+  T -- No --> U[Fail / investigation]
+  T -- Yes --> V[finalizeOrderPaid]
+  V --> W[Notify customer + vendors]
+  W --> X[Track /account/orders/number]
+  X --> Y[Delivered / confirm delivery]

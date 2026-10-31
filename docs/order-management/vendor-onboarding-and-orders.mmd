@@ -1,0 +1,21 @@
+flowchart TD
+  A[/sell] --> B[Apply /vendor/apply]
+  B --> C[Wizard + KYC docs]
+  C --> D[SUBMITTED]
+  D --> E[Admin reviews /admin/vendors]
+  E --> F{Approved?}
+  F -- No --> G[Reject / changes requested]
+  G --> B
+  F -- Yes --> H[Vendor ACTIVE + rental trial]
+  H --> I[/vendor desk]
+  I --> J[Create / bulk import products]
+  J --> K{Valid + quota?}
+  K -- No --> L[Row errors / report]
+  L --> J
+  K -- Yes --> M[PENDING_REVIEW or PUBLISHED]
+  M --> N[Receive VendorOrder when PAID]
+  N --> O[Accept]
+  O --> P[Packaged]
+  P --> Q[Shipped + tracking]
+  Q --> R[Delivered]
+  R --> S[Wallet settlement + payout request]

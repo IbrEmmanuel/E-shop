@@ -1,0 +1,10 @@
+flowchart TD
+  A[Session user] --> B{role}
+  B -- CUSTOMER --> C[Own cart orders profile]
+  B -- VENDOR --> D[Own vendor products orders earnings]
+  B -- ADMIN --> E[Marketplace ops vendors orders payments payouts]
+  B -- SUPER_ADMIN --> F[E + /super admins audit platform]
+  D --> G[Ownership: vendor.userId === session.id]
+  E --> H[requireAdmin server-side]
+  F --> I[requireSuperAdmin]
+  C --> J[Layouts + middleware are UX only — services enforce]

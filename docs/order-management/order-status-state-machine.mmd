@@ -1,0 +1,21 @@
+stateDiagram-v2
+  [*] --> PENDING_PAYMENT: createOrderFromCart
+  PENDING_PAYMENT --> PAID: verified payment
+  PENDING_PAYMENT --> CANCELLED: cancel / expire
+  PAID --> PROCESSING: vendor accept / admin
+  PAID --> SHIPPED: admin advance
+  PAID --> CANCELLED: rare admin path
+  PAID --> REFUNDED: admin refund
+  PROCESSING --> SHIPPED: ship
+  PROCESSING --> DELIVERED: customer confirm edge
+  PROCESSING --> REFUNDED: admin refund
+  SHIPPED --> DELIVERED: deliver / customer confirm
+  SHIPPED --> REFUNDED: admin refund
+  DELIVERED --> REFUNDED: admin refund
+  CANCELLED --> [*]
+  REFUNDED --> [*]
+
+  note right of PAID
+    Payment.status tracked separately:
+    PENDING → REQUIRES_ACTION → SUCCEEDED / FAILED / REFUNDED
+  end note

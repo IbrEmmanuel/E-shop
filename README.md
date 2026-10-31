@@ -18,6 +18,7 @@ Full-stack Next.js marketplace: customer shopping, vendor rentals (pay monthly),
 | Sellers | Monthly rental plans, apply flow, products, XLSX/CSV batches, orders, wallet |
 | Ads | Campaigns, sponsored placements, CTR/CPC/CPA/ROAS from real events |
 | Admin | Platform metrics, products, categories, customers, imports, journal, audit, settings |
+| Orders | Multi-vendor checkout, payment verify, fulfilment state machine, refunds, wallets — see [docs/order-management](./docs/order-management/README.md) |
 | SEO | Metadata, JSON-LD, sitemap, robots |
 
 ## Local setup

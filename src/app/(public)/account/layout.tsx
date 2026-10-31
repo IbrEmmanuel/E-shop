@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AccountShell } from "@/components/account/account-shell";
 import { getSessionUser } from "@/lib/auth";
@@ -12,10 +13,17 @@ export default async function AccountLayout({
   if (!user) {
     redirect("/login?callbackUrl=/account");
   }
-  if (user.role === "SUPER_ADMIN") {
+
+  const pathname = (await headers()).get("x-pathname") || "";
+  const staffInspectingOrder =
+    pathname === "/account/orders" ||
+    pathname.startsWith("/account/orders/");
+
+  // Staff normally land on /admin or /super, but may open customer track URLs.
+  if (user.role === "SUPER_ADMIN" && !staffInspectingOrder) {
     redirect("/super");
   }
-  if (user.role === "ADMIN") {
+  if (user.role === "ADMIN" && !staffInspectingOrder) {
     redirect("/admin");
   }
 

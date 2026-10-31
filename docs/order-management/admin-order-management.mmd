@@ -1,0 +1,16 @@
+flowchart TD
+  A[Admin sign-in] --> B[requireAdmin / SUPER_ADMIN]
+  B --> C{Authorized?}
+  C -- No --> D[Deny + audit]
+  C -- Yes --> E[/admin dashboard]
+  E --> F[Vendors applications]
+  E --> G[Orders list + detail]
+  E --> H[Payments / investigations]
+  E --> I[Payouts approve/reject]
+  E --> J[Settings / marketplace]
+  F --> K[Approve suspend reject]
+  G --> L[Inspect timeline payment vendor splits]
+  L --> M[Confirm transfer / fulfil / refund]
+  M --> N[AuditLog + notifications]
+  H --> N
+  I --> N

@@ -1,0 +1,10 @@
+flowchart TD
+  A[Cart lines] --> B[Group by product.vendorId]
+  B --> C[One Order header totals]
+  C --> D[VendorOrder per vendor]
+  D --> E[OrderItems linked vendorOrderId]
+  E --> F[Independent fulfilment statuses]
+  F --> G{All siblings?}
+  G -- Any packing --> H[Parent PROCESSING]
+  G -- All SHIPPED/DELIVERED --> I[Parent SHIPPED]
+  G -- All DELIVERED --> J[Parent DELIVERED + settle wallets]

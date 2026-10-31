@@ -1,0 +1,12 @@
+flowchart TD
+  A[Checkout retry] --> B[Same idempotencyKey → same Order]
+  C[Duplicate webhook] --> D[PaymentWebhookEvent unique + finalize idempotent]
+  E[Stale unpaid] --> F[cron expire-orders / expireStaleUnpaidOrders]
+  F --> G[Release reservations]
+  H[notifyOrderPaid / Shipped] --> I[EmailOutbox]
+  I --> J{Resend configured?}
+  J -- No --> K[Local SENT log]
+  J -- Yes --> L[Provider send]
+  L -- Fail --> M[FAILED outbox — retry mail only not order]
+  N[Amount mismatch bank] --> O[investigationStatus OPEN]
+  O --> P[Admin resolves — no auto PAID]

@@ -1,0 +1,12 @@
+flowchart TD
+  A[Order] --> B{Status}
+  B -- PENDING_PAYMENT --> C[Customer/admin cancelUnpaidOrder]
+  C --> D[Release reservedQty]
+  C --> E[Payment FAILED VendorOrder CANCELLED]
+  B -- PAID..DELIVERED --> F[Admin refundOrder]
+  F --> G[assertOrderTransition → REFUNDED]
+  G --> H[Restore inventoryQty]
+  G --> I[Payment REFUNDED]
+  G --> J[clawbackVendorEarnings ledger]
+  G --> K[Offline bank refund manual]
+  B -- Delivered physical return --> L[Not automated yet — support + admin refund]

@@ -487,6 +487,10 @@ model VendorOrder {
   subtotalMinor Int
   shippingMinor Int         @default(0)
   totalMinor    Int
+  /// Snapshot at settlement (bps on vendor subtotal / item gross).
+  commissionBpsSnapshot Int?
+  commissionMinor       Int?
+  vendorNetMinor        Int?
   trackingNumber String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -546,10 +550,13 @@ model OrderStatusHistory {
   orderId   String
   status        String
   note      String?
+  /// User who caused this transition (customer, vendor, or admin).
+  actorId   String?
   createdAt DateTime    @default(now())
   order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
+  @@index([actorId])
 }
 
 model Payment {
