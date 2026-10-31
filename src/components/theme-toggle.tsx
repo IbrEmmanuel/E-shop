@@ -14,7 +14,10 @@ export function ThemeToggle({ className }: { className?: string }) {
       type="button"
       onClick={toggleTheme}
       className={cn("button button--glass button--icon", className)}
-      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      // Stable label avoids SSR/client theme mismatch before hydration.
+      aria-label="Toggle color theme"
+      title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      suppressHydrationWarning
     >
       <Sun size={18} className="theme-icon-sun" aria-hidden />
       <Moon size={18} className="theme-icon-moon" aria-hidden />

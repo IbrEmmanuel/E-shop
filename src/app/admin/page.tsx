@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   ShoppingBag,
   CalendarClock,
@@ -39,8 +40,11 @@ function statusTone(status: string): BadgeTone {
 
 export default async function AdminDashboardPage() {
   const session = await getSessionUser();
-  const userId = session!.id;
-  const first = (session!.name || "User").split(/\s+/)[0];
+  if (!session) {
+    redirect("/login?callbackUrl=/admin");
+  }
+  const userId = session.id;
+  const first = (session.name || "User").split(/\s+/)[0];
 
   const [stats, platform] = await Promise.all([
     getPersonalOrderStats(userId),

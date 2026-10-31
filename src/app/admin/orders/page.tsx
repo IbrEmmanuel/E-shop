@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ConfirmTransferButton } from "@/components/payments/confirm-transfer-button";
 import { FulfillmentActions } from "@/components/payments/fulfillment-actions";
 import { RefundOrderButton } from "@/components/payments/refund-order-button";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getSessionUser } from "@/lib/auth";
 import { formatMoney } from "@/lib/money";
+import { isAdmin as userIsAdmin } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { expireStaleUnpaidOrders } from "@/services/orders";
 
@@ -19,14 +21,17 @@ type PaymentMeta = {
 
 export default async function AdminOrdersPage() {
   const session = await getSessionUser();
-  const isAdmin = (session?.role === "ADMIN" || session?.role === "SUPER_ADMIN");
-
-  if (isAdmin) {
-    await expireStaleUnpaidOrders(48).catch(() => 0);
+  if (!session) {
+    redirect("/login?callbackUrl=/admin/orders");
+  }
+  const isAdmin = userIsAdmin(session);
+  if (!isAdmin) {
+    redirect("/account/orders");
   }
 
+  await expireStaleUnpaidOrders(48).catch(() => 0);
+
   const orders = await prisma.order.findMany({
-    where: isAdmin ? undefined : { userId: session!.id },
     orderBy: { createdAt: "desc" },
     take: 100,
     include: {
