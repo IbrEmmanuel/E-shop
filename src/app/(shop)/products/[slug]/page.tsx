@@ -198,7 +198,7 @@ export default async function ProductPage({ params }: Props) {
             <p className="mt-4 text-sm">
               Category:{" "}
               <Link
-                href={`/categories/${product.category.slug}`}
+                href={`/shop?category=${encodeURIComponent(product.category.slug)}`}
                 className="underline"
               >
                 {product.category.name}

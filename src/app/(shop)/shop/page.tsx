@@ -129,7 +129,10 @@ export default async function ShopPage({
       {categories.length > 0 ? (
         <p className="mt-8 text-center text-sm text-[var(--color-text-muted)]">
           Or browse{" "}
-          <Link href={`/categories/${categories[0].slug}`} className="underline">
+          <Link
+            href={`/shop?category=${encodeURIComponent(categories[0].slug)}`}
+            className="underline"
+          >
             {categories[0].name}
           </Link>
         </p>

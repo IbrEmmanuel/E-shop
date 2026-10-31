@@ -150,8 +150,8 @@ export default async function HomePage() {
           title="Shop by category"
           lede="Browse lanes curated from active vendors."
           action={
-            <Button asChild href="/categories" variant="ghost" size="sm">
-              All categories
+            <Button asChild href="/shop" variant="ghost" size="sm">
+              Browse shop
             </Button>
           }
         />
@@ -165,7 +165,7 @@ export default async function HomePage() {
             {categories.map((cat) => (
               <Link
                 key={cat.id}
-                href={`/categories/${cat.slug}`}
+                href={`/shop?category=${encodeURIComponent(cat.slug)}`}
                 className="home-lane card group relative block overflow-hidden"
               >
                 <div className="relative aspect-[3/4] bg-[var(--color-bg-subtle)]">

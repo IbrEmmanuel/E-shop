@@ -8,7 +8,6 @@ export async function SiteFooter() {
       title: "Shop",
       links: [
         { href: "/shop", label: "All products" },
-        { href: "/categories", label: "Categories" },
         { href: "/search", label: "Search" },
         { href: "/blog", label: "Blog" },
         { href: "/sell", label: "Sell on E-Shop" },

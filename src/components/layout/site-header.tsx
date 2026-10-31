@@ -7,7 +7,6 @@ import { getCartTotals } from "@/services/cart";
 
 const nav = [
   { href: "/shop", label: "Shop" },
-  { href: "/categories", label: "Categories" },
   { href: "/blog", label: "Blog" },
   { href: "/sell", label: "Sell" },
 ];
