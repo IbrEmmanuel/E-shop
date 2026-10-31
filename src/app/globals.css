@@ -381,19 +381,19 @@ img {
 }
 
 .brand-logo--header {
-  width: 6.7rem;
-  height: 2rem;
+  width: 8.25rem;
+  height: 2.45rem;
 }
 
 @media (min-width: 768px) {
   .brand-logo--header {
-    width: 9.2rem;
-    height: 2.75rem;
+    width: 11rem;
+    height: 3.25rem;
   }
 
   .brand-logo--xl {
-    width: 16.5rem;
-    height: 4.9rem;
+    width: 18rem;
+    height: 5.35rem;
   }
 }
 
