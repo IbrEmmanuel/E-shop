@@ -27,7 +27,7 @@ export default async function AccountSavedPage() {
             Nothing saved yet. Tap Save on a product to keep it here.
           </p>
           <Button asChild href="/shop" variant="accent" size="sm">
-            Explore the shop
+            Shop products
           </Button>
         </div>
       ) : (

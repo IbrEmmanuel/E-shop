@@ -31,7 +31,7 @@ This folder documents the **implemented** Customer, Vendor, and Admin order life
 
 | Role | Routes |
 | --- | --- |
-| Customer | `/shop`, `/cart`, `/checkout`, `/account/orders`, `/account/orders/[orderNumber]` |
+| Customer | `/shop`, `/categories`, `/cart`, `/checkout`, `/account/orders`, `/account/orders/[orderNumber]` |
 | Vendor | `/vendor`, `/vendor/products`, `/vendor/orders`, `/vendor/earnings`, `/vendor/payouts`, `/vendor/apply` |
 | Admin | `/admin`, `/admin/orders`, `/admin/orders/[orderNumber]`, `/admin/payments`, `/admin/vendors`, … |
 | Super | `/super`, `/super/admins`, `/super/audit` |

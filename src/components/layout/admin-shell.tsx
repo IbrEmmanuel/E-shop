@@ -17,8 +17,10 @@ import {
   BadgeCheck,
   CircleAlert,
   Shield,
+  LayoutGrid,
 } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -49,6 +51,7 @@ const navGroups: NavGroup[] = [
       { href: "/admin/payments", label: "Investigations", icon: CircleAlert },
       { href: "/admin/products", label: "Approvals", icon: BadgeCheck },
       { href: "/admin/marketplace", label: "Marketplace", icon: ShoppingBag },
+      { href: "/admin/categories", label: "Categories", icon: LayoutGrid },
       { href: "/admin/vendors", label: "Vendors", icon: Store },
       { href: "/admin/customers", label: "Customers", icon: Users },
     ],
@@ -136,12 +139,9 @@ export function AdminShell({
 
         <div className="admin-sidebar__brand">
           <Link href="/admin" className="admin-sidebar__logo">
-            <span className="admin-sidebar__mark">E</span>
-            <span>
-              <span className="admin-sidebar__name">E-Shop</span>
-              <span className="admin-sidebar__tag">
-                {isSuperAdmin ? "Super console" : "Console"}
-              </span>
+            <BrandLogo href={null} size="sm" />
+            <span className="admin-sidebar__tag">
+              {isSuperAdmin ? "Super console" : "Console"}
             </span>
           </Link>
           <ThemeToggle className="admin-sidebar__theme" />

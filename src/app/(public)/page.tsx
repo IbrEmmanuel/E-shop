@@ -6,6 +6,7 @@ import { listPublishedProducts } from "@/services/products";
 import { listActivePlans } from "@/services/rentals";
 import { getSiteSettings } from "@/services/settings";
 import { AuthParticleOrb } from "@/components/auth/auth-particle-orb";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { SponsoredShelf } from "@/components/ads/sponsored-shelf";
 import { SectionHead } from "@/components/layout/section-head";
 import { ProductGrid } from "@/components/products/product-grid";
@@ -38,16 +39,9 @@ export default async function HomePage() {
       await Promise.all([
         listPublishedProducts({ pageSize: 12, sort: "newest" }),
         prisma.category.findMany({
-          where: {
-            isActive: true,
-            parentId: null,
-            OR: [
-              { imageUrl: { not: null } },
-              { products: { some: { status: "PUBLISHED" } } },
-            ],
-          },
+          where: { isActive: true, parentId: null },
           orderBy: { sortOrder: "asc" },
-          take: 8,
+          take: 12,
           select: { id: true, name: true, slug: true, imageUrl: true },
         }),
         listActivePlans(),
@@ -122,9 +116,9 @@ export default async function HomePage() {
         </div>
         <div className="home-hero__content container-page">
           <div className="home-hero__copy">
-            <p className="home-reveal home-reveal--1 type-h1">
-              {settings.siteName}
-            </p>
+            <div className="home-reveal home-reveal--1">
+              <BrandLogo href={null} size="xl" priority />
+            </div>
             <h1 className="home-reveal home-reveal--2 type-body max-w-lg md:text-lg">
               {settings.tagline}
             </h1>
@@ -135,10 +129,10 @@ export default async function HomePage() {
             </p>
             <div className="home-reveal home-reveal--4 button-group button-group--stack-mobile pt-1">
               <Button asChild href="/shop" variant="accent" size="lg">
-                Shop the catalog
+                Shop products
               </Button>
-              <Button asChild href="/sell" variant="dark" size="lg">
-                Open a shop
+              <Button asChild href="/categories" variant="dark" size="lg">
+                See categories
               </Button>
             </div>
           </div>
@@ -150,8 +144,8 @@ export default async function HomePage() {
           title="Shop by category"
           lede="Browse lanes curated from active vendors."
           action={
-            <Button asChild href="/shop" variant="ghost" size="sm">
-              Browse shop
+            <Button asChild href="/categories" variant="ghost" size="sm">
+              All categories
             </Button>
           }
         />
@@ -165,7 +159,7 @@ export default async function HomePage() {
             {categories.map((cat) => (
               <Link
                 key={cat.id}
-                href={`/shop?category=${encodeURIComponent(cat.slug)}`}
+                href={`/categories/${cat.slug}`}
                 className="home-lane card group relative block overflow-hidden"
               >
                 <div className="relative aspect-[3/4] bg-[var(--color-bg-subtle)]">
@@ -254,7 +248,7 @@ export default async function HomePage() {
             lede="Fresh listings from active storefronts."
             action={
               <Button asChild href="/shop" variant="outline" size="sm">
-                View all
+                Shop all
               </Button>
             }
           />
@@ -375,7 +369,7 @@ export default async function HomePage() {
           </div>
           <div className="button-group button-group--stack-mobile shrink-0 md:ml-auto">
             <Button asChild href="/shop" variant="primary" size="lg">
-              Browse shop
+              Shop products
             </Button>
             <Button asChild href="/account/orders" variant="outline" size="lg">
               Track an order

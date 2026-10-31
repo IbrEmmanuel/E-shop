@@ -33,7 +33,7 @@ export default async function AccountOrdersPage() {
             You have not placed an order yet.
           </p>
           <Button asChild href="/shop" variant="accent" size="sm">
-            Start shopping
+            Shop products
           </Button>
         </div>
       ) : (

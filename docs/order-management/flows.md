@@ -30,7 +30,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A[Browse /shop] --> B[Product detail]
+  A[Browse /shop or /categories] --> B[Product detail]
   B --> C[Add to cart]
   C --> D{Authenticated?}
   D -- No --> E[Login callbackUrl=/checkout]

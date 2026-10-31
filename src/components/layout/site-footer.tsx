@@ -1,13 +1,15 @@
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { getSiteSettings } from "@/services/settings";
 
 export async function SiteFooter() {
   const settings = await getSiteSettings();
   const columns = [
     {
-      title: "Shop",
+      title: "Browse",
       links: [
-        { href: "/shop", label: "All products" },
+        { href: "/shop", label: "Shop" },
+        { href: "/categories", label: "Categories" },
         { href: "/search", label: "Search" },
         { href: "/blog", label: "Blog" },
         { href: "/sell", label: "Sell on E-Shop" },
@@ -34,8 +36,8 @@ export async function SiteFooter() {
     <footer className="mt-auto border-t border-[var(--glass-border)] surface-glass pb-28 md:pb-0">
       <div className="container-page grid gap-12 py-16 md:grid-cols-[1.5fr_1fr_1fr_1fr] md:gap-10 md:py-20">
         <div>
-          <p className="type-h2 !text-[1.75rem]">{settings.siteName}</p>
-          <p className="type-body mt-4 max-w-xs">{settings.tagline}</p>
+          <BrandLogo size="lg" />
+          <p className="type-body mt-5 max-w-xs">{settings.tagline}</p>
           <p className="mt-6 text-sm">
             <a
               className="link-nav"

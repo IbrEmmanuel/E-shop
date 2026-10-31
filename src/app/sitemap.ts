@@ -6,6 +6,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes = [
     "",
     "/shop",
+    "/categories",
     "/sell",
     "/blog",
     "/about",
@@ -21,16 +22,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   let products: { slug: string; updatedAt: Date }[] = [];
+  let categories: { slug: string; updatedAt: Date }[] = [];
   let vendors: { slug: string; updatedAt: Date }[] = [];
   let posts: { slug: string; updatedAt: Date; publishedAt: Date | null }[] = [];
 
   try {
-    [products, vendors, posts] = await Promise.all([
+    [products, categories, vendors, posts] = await Promise.all([
       prisma.product.findMany({
         where: { status: "PUBLISHED", vendor: { status: "ACTIVE" } },
         select: { slug: true, updatedAt: true },
         take: 50_000,
         orderBy: { updatedAt: "desc" },
+      }),
+      prisma.category.findMany({
+        where: { isActive: true },
+        select: { slug: true, updatedAt: true },
       }),
       prisma.vendor.findMany({
         where: { status: "ACTIVE" },
@@ -52,6 +58,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: p.updatedAt,
       changeFrequency: "daily" as const,
       priority: 0.8,
+    })),
+    ...categories.map((c) => ({
+      url: siteUrl(`/categories/${c.slug}`),
+      lastModified: c.updatedAt,
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
     })),
     ...vendors.map((v) => ({
       url: siteUrl(`/vendors/${v.slug}`),

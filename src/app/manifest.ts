@@ -2,25 +2,31 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "E-Shop Marketplace",
-    short_name: "E-Shop",
+    name: "E-shop Marketplace",
+    short_name: "E-shop",
     description:
       "Shop phones, inverters, batteries, fashion, audio gear and more. Multi-vendor marketplace with secure checkout.",
     start_url: "/",
     display: "standalone",
-    background_color: "#f7f4ef",
-    theme_color: "#1a1a1a",
+    background_color: "#1c1c1c",
+    theme_color: "#ff7600",
     orientation: "portrait-primary",
     categories: ["shopping", "lifestyle"],
     icons: [
       {
-        src: "/icon",
+        src: "/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/icon-512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icon",
+        src: "/icon-maskable.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",

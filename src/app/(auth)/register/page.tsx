@@ -1,7 +1,7 @@
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { RegisterForm } from "@/components/forms/auth-forms";
 import { buildMetadata } from "@/lib/seo";
-import { getSiteSettings } from "@/services/settings";
 
 export const metadata = buildMetadata({
   title: "Create account",
@@ -21,15 +21,12 @@ export default async function RegisterPage({
   const callbackUrl =
     typeof sp.callbackUrl === "string" ? sp.callbackUrl : "/";
   const forCheckout = callbackUrl.startsWith("/checkout");
-  const settings = await getSiteSettings();
 
   return (
     <div className="auth-card home-reveal">
       <div className="auth-card__glow" aria-hidden />
       <div className="auth-card__inner">
-        <Link href="/" className="auth-stage__brand">
-          {settings.siteName}
-        </Link>
+        <BrandLogo size="lg" className="auth-stage__brand-mark" />
         <h1 className="auth-stage__title">Create account</h1>
         <p className="auth-stage__lede">
           {forCheckout

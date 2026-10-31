@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AuthParticleOrb } from "@/components/auth/auth-particle-orb";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { LoginForm } from "@/components/forms/auth-forms";
 import { buildMetadata } from "@/lib/seo";
 import { getSiteSettings } from "@/services/settings";
@@ -55,9 +56,7 @@ export default async function LoginPage({
       <div className="auth-card auth-card--cinematic home-reveal home-reveal--2">
         <div className="auth-card__glow" aria-hidden />
         <div className="auth-card__inner">
-          <Link href="/" className="auth-stage__brand auth-stage__brand--sm">
-            {settings.siteName}
-          </Link>
+          <BrandLogo size="lg" className="auth-stage__brand-mark" />
           <h2 className="auth-stage__title">
             {forCheckout ? "Sign in to continue" : "Welcome back"}
           </h2>

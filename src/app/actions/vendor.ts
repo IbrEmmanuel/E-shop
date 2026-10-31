@@ -387,6 +387,7 @@ export async function updateProductAction(
   revalidatePath("/vendor/products");
   revalidatePath(`/vendor/products/${existing.id}/edit`);
   revalidatePath("/shop");
+  revalidatePath("/categories");
   revalidatePath(`/products/${existing.slug}`);
   return { ok: true, message: "Product saved." };
 }

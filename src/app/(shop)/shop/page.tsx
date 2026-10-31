@@ -10,7 +10,7 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
   title: "Shop",
-  description: "Browse published products from active E-Shop vendors.",
+  description: "Buy products from active E-Shop vendors.",
   path: "/shop",
 });
 
@@ -55,18 +55,25 @@ export default async function ShopPage({
 
   return (
     <div className="container-page py-14 md:py-20">
-      <header className="mb-10 max-w-2xl">
-        <h1 className="type-h1 !text-[clamp(2.2rem,4vw,3.25rem)]">Shop</h1>
-        <p className="type-body mt-3">
-          {result.total} product{result.total === 1 ? "" : "s"}
-          {q ? ` for “${q}”` : ""}
-        </p>
+      <header className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="max-w-2xl">
+          <h1 className="type-h1 !text-[clamp(2.2rem,4vw,3.25rem)]">Shop</h1>
+          <p className="type-body mt-3">
+            Find and buy products from active vendors.
+            {result.total > 0
+              ? ` ${result.total} product${result.total === 1 ? "" : "s"}${q ? ` for “${q}”` : ""}.`
+              : null}
+          </p>
+        </div>
+        <Button asChild href="/categories" variant="outline" size="sm">
+          See all kinds
+        </Button>
       </header>
 
       <form className="card mb-12 grid gap-3 p-4 md:grid-cols-[1fr_12rem_12rem_auto]">
-        <Input name="q" defaultValue={q} placeholder="Search…" />
+        <Input name="q" defaultValue={q} placeholder="Search products…" />
         <Select name="category" defaultValue={categorySlug || ""}>
-          <option value="">All categories</option>
+          <option value="">All kinds</option>
           {categories.map((c) => (
             <option key={c.slug} value={c.slug}>
               {c.name}
@@ -126,17 +133,12 @@ export default async function ShopPage({
         </nav>
       ) : null}
 
-      {categories.length > 0 ? (
-        <p className="mt-8 text-center text-sm text-[var(--color-text-muted)]">
-          Or browse{" "}
-          <Link
-            href={`/shop?category=${encodeURIComponent(categories[0].slug)}`}
-            className="underline"
-          >
-            {categories[0].name}
-          </Link>
-        </p>
-      ) : null}
+      <p className="mt-10 text-center text-sm text-[var(--color-text-muted)]">
+        Prefer to browse by kind?{" "}
+        <Link href="/categories" className="font-semibold underline">
+          View categories
+        </Link>
+      </p>
     </div>
   );
 }

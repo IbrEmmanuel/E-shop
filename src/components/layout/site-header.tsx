@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Search, ShoppingBag, User } from "lucide-react";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getSessionUser } from "@/lib/auth";
 import { getGuestKey } from "@/lib/guest";
@@ -7,6 +8,7 @@ import { getCartTotals } from "@/services/cart";
 
 const nav = [
   { href: "/shop", label: "Shop" },
+  { href: "/categories", label: "Categories" },
   { href: "/blog", label: "Blog" },
   { href: "/sell", label: "Sell" },
 ];
@@ -25,13 +27,6 @@ export async function SiteHeader() {
     guestKey = null;
   }
   let itemCount = 0;
-  let siteName = "E-Shop";
-  try {
-    const { getSiteSettings } = await import("@/services/settings");
-    siteName = (await getSiteSettings()).siteName;
-  } catch {
-    /* defaults */
-  }
   try {
     if (user || guestKey) {
       const totals = await getCartTotals({
@@ -47,9 +42,7 @@ export async function SiteHeader() {
   return (
     <header className="sticky top-0 z-[var(--z-header)] border-b border-[var(--glass-border)] surface-glass">
       <div className="container-page flex h-16 items-center gap-4 md:h-[4.5rem] md:gap-6">
-        <Link href="/" className="type-h2 shrink-0 !text-[1.5rem] md:!text-[1.65rem]">
-          {siteName}
-        </Link>
+        <BrandLogo size="header" priority />
 
         <nav className="ml-1 hidden items-center gap-1 text-sm font-medium md:flex">
           {nav.map((item) => (

@@ -88,7 +88,7 @@ export default async function AccountOverviewPage() {
               No orders yet.
             </p>
             <Button asChild href="/shop" variant="accent" size="sm">
-              Browse the shop
+              Shop products
             </Button>
           </div>
         ) : (

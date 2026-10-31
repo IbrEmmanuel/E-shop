@@ -332,6 +332,91 @@ img {
   display: block;
 }
 
+/* Brand wordmark — crisp, quiet, theme-aware */
+.brand-logo-link {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  line-height: 0;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 2px;
+  transition: opacity 0.2s ease;
+}
+
+.brand-logo-link:hover {
+  opacity: 0.88;
+}
+
+.brand-logo-link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: 4px;
+}
+
+.brand-logo {
+  position: relative;
+  display: block;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.brand-logo--sm {
+  width: 5.4rem;
+  height: 1.6rem;
+}
+
+.brand-logo--md {
+  width: 6.7rem;
+  height: 2rem;
+}
+
+.brand-logo--lg {
+  width: 9.2rem;
+  height: 2.75rem;
+}
+
+.brand-logo--xl {
+  width: 13.4rem;
+  height: 4rem;
+}
+
+.brand-logo--header {
+  width: 6.7rem;
+  height: 2rem;
+}
+
+@media (min-width: 768px) {
+  .brand-logo--header {
+    width: 9.2rem;
+    height: 2.75rem;
+  }
+
+  .brand-logo--xl {
+    width: 16.5rem;
+    height: 4.9rem;
+  }
+}
+
+.brand-logo__img {
+  object-fit: contain !important;
+  object-position: left center !important;
+  max-width: none !important;
+  pointer-events: none;
+  user-select: none;
+}
+
+.brand-logo__img--dark {
+  display: none;
+}
+
+[data-theme="dark"] .brand-logo__img--light {
+  display: none;
+}
+
+[data-theme="dark"] .brand-logo__img--dark {
+  display: block;
+}
+
 hr {
   border: 0;
   border-top: 1px solid var(--color-border);
@@ -565,8 +650,9 @@ mark {
 
 .admin-sidebar__logo {
   display: flex;
-  align-items: center;
-  gap: 0.7rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
   min-width: 0;
   text-decoration: none;
   color: inherit;
@@ -599,7 +685,7 @@ mark {
 
 .admin-sidebar__tag {
   display: block;
-  margin-top: 0.15rem;
+  margin-top: 0;
   font-size: 0.625rem;
   font-weight: 600;
   letter-spacing: 0.16em;
@@ -3489,6 +3575,10 @@ mark {
 
 .auth-stage__brand--sm {
   font-size: clamp(1.65rem, 4vw, 2rem);
+}
+
+.auth-stage__brand-mark {
+  margin: 0;
 }
 
 @media (min-width: 960px) {

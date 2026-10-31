@@ -26,7 +26,16 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   ),
-  applicationName: "E-Shop",
+  applicationName: "E-shop",
+  icons: {
+    icon: [
+      { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   keywords: [
     "online shop Nigeria",
     "buy phones",
@@ -39,21 +48,23 @@ export const metadata: Metadata = {
     "E-Shop marketplace",
   ],
   openGraph: {
-    siteName: "E-Shop",
+    siteName: "E-shop",
     type: "website",
     title: "E-Shop — Phones, Inverters, Batteries & Fashion",
     description:
       "Curated multi-vendor marketplace with live catalog, search, and secure bank-transfer checkout.",
+    images: [{ url: "/icon-512.png", width: 512, height: 512, alt: "E-shop" }],
   },
   twitter: {
-    card: "summary_large_image",
+    card: "summary",
     title: "E-Shop Marketplace",
     description:
       "Shop phones, power gear, audio, watches, and fashion — search by name for images and prices.",
+    images: ["/icon-512.png"],
   },
   appleWebApp: {
     capable: true,
-    title: "E-Shop",
+    title: "E-shop",
     statusBarStyle: "default",
   },
   other: {
