@@ -6,6 +6,15 @@ type HomeHeroWriteupProps = {
   lede: string;
 };
 
+const TICKER = [
+  "Live inventory",
+  "Bank-transfer checkout",
+  "Monthly shop rental",
+  "Tracked delivery",
+  "Vendor desks",
+  "Multi-vendor catalog",
+];
+
 export function HomeHeroWriteup({ lede }: HomeHeroWriteupProps) {
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -26,14 +35,18 @@ export function HomeHeroWriteup({ lede }: HomeHeroWriteupProps) {
       const hero = root.closest(".home-hero");
       if (!hero) return;
       const rect = hero.getBoundingClientRect();
-      const travel = Math.max(rect.height * 0.55, 1);
+      const travel = Math.max(rect.height * 0.7, 180);
       const scrolled = Math.min(Math.max(-rect.top, 0), travel);
       const progress = scrolled / travel;
       root.style.setProperty("--hero-scroll", progress.toFixed(4));
 
       root.querySelectorAll<HTMLElement>("[data-parallax]").forEach((el) => {
-        const speed = Number(el.dataset.parallax || 0.18);
-        el.style.transform = `translate3d(0, ${progress * speed * -72}px, 0)`;
+        const speed = Number(el.dataset.parallax || 0.2);
+        // Drive via CSS var so it never fights entrance animations.
+        el.style.setProperty(
+          "--parallax-y",
+          `${(progress * speed * -140).toFixed(2)}`,
+        );
       });
     };
 
@@ -53,32 +66,50 @@ export function HomeHeroWriteup({ lede }: HomeHeroWriteupProps) {
     };
   }, []);
 
+  const ticker = [...TICKER, ...TICKER];
+
   return (
     <div ref={rootRef} className="home-hero-writeup">
-      <p className="home-hero-writeup__eyebrow home-reveal home-reveal--2" data-parallax="0.08">
-        <span className="home-hero-writeup__pulse" aria-hidden />
-        Live marketplace OS
-      </p>
+      <div className="home-reveal home-reveal--2">
+        <p className="home-hero-writeup__eyebrow" data-parallax="0.12">
+          <span className="home-hero-writeup__pulse" aria-hidden />
+          Live marketplace OS
+        </p>
+      </div>
+
       <h1 className="home-hero-writeup__headline">
-        <span
-          className="home-hero-writeup__line home-reveal home-reveal--2"
-          data-parallax="0.14"
-        >
-          Multi-vendor commerce,
+        <span className="home-reveal home-reveal--2">
+          <span className="home-hero-writeup__line" data-parallax="0.22">
+            Multi-vendor commerce,
+          </span>
         </span>
-        <span
-          className="home-hero-writeup__line home-hero-writeup__line--accent home-reveal home-reveal--3"
-          data-parallax="0.26"
-        >
-          engineered for makers.
+        <span className="home-reveal home-reveal--3">
+          <span
+            className="home-hero-writeup__line home-hero-writeup__line--accent"
+            data-parallax="0.4"
+          >
+            engineered for makers.
+          </span>
         </span>
       </h1>
-      <p
-        className="home-hero-writeup__lede home-reveal home-reveal--3"
-        data-parallax="0.34"
-      >
-        {lede}
-      </p>
+
+      <div className="home-reveal home-reveal--3">
+        <div className="home-hero-writeup__ticker" data-parallax="0.28" aria-hidden>
+          <div className="home-hero-writeup__ticker-track">
+            {ticker.map((item, i) => (
+              <span key={`${item}-${i}`} className="home-hero-writeup__ticker-item">
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="home-reveal home-reveal--3">
+        <p className="home-hero-writeup__lede" data-parallax="0.48">
+          {lede}
+        </p>
+      </div>
     </div>
   );
 }
