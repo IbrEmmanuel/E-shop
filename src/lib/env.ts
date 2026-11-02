@@ -82,3 +82,11 @@ export function storageProvider(): "remote" | "local" {
 export function remoteStorageConfigured(): boolean {
   return storageProvider() === "remote";
 }
+
+/** Soft capacity for active vendor shops (default 30). */
+export function maxActiveVendors(): number {
+  const raw = process.env.MAX_ACTIVE_VENDORS?.trim();
+  const n = raw ? Number(raw) : 30;
+  if (!Number.isFinite(n) || n < 1) return 30;
+  return Math.floor(n);
+}

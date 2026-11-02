@@ -58,9 +58,10 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(login);
   }
 
-  // Expose pathname to server layouts (apply vs desk gating).
+  // Expose path + search to server layouts (apply vs desk, staff inspect).
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-pathname", pathname);
+  requestHeaders.set("x-search", req.nextUrl.search);
   return NextResponse.next({
     request: { headers: requestHeaders },
   });

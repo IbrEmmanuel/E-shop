@@ -109,6 +109,17 @@ export async function adminApproveApplication(
     throw new Error("User already has a vendor account");
   }
 
+  const { maxActiveVendors } = await import("@/lib/env");
+  const activeCap = maxActiveVendors();
+  const activeCount = await prisma.vendor.count({
+    where: { status: "ACTIVE" },
+  });
+  if (activeCount >= activeCap) {
+    throw new Error(
+      `Vendor capacity reached (${activeCount}/${activeCap}). Pause an inactive shop or raise MAX_ACTIVE_VENDORS.`,
+    );
+  }
+
   const plan = application.rentalPlan;
   const baseSlug = slugify(application.storeName) || "store";
   let slug = baseSlug;
@@ -229,6 +240,17 @@ export async function adminEnsurePlatformShop(
       });
     }
     return existing;
+  }
+
+  const { maxActiveVendors } = await import("@/lib/env");
+  const activeCap = maxActiveVendors();
+  const activeCount = await prisma.vendor.count({
+    where: { status: "ACTIVE" },
+  });
+  if (activeCount >= activeCap) {
+    throw new Error(
+      `Vendor capacity reached (${activeCount}/${activeCap}). Pause an inactive shop or raise MAX_ACTIVE_VENDORS before creating the platform shop.`,
+    );
   }
 
   const categoryCount = await prisma.category.count();

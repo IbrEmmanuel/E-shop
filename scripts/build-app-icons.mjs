@@ -96,10 +96,37 @@ let eBuf = await sharp(src)
 
 await sharp(eBuf).toFile("public/brand/e-shop-e-only.png");
 
+/** Dark mark accents → near-black so they read on white tiles. */
+async function markForLightBg(input) {
+  const { data, info } = await sharp(input)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const d = Buffer.from(data);
+  for (let i = 0; i < d.length; i += 4) {
+    const a = d[i + 3];
+    if (a < 20) continue;
+    const r = d[i];
+    const g = d[i + 1];
+    const b = d[i + 2];
+    if (isInk(r, g, b, a)) {
+      d[i] = 18;
+      d[i + 1] = 18;
+      d[i + 2] = 18;
+    }
+  }
+  return sharp(d, {
+    raw: { width: info.width, height: info.height, channels: 4 },
+  })
+    .png()
+    .toBuffer();
+}
+
 async function makeAppIcon(size, outPath, padRatio = 0.17) {
-  const bg = { r: 28, g: 28, b: 28, alpha: 255 };
+  const bg = { r: 255, g: 255, b: 255, alpha: 255 };
   const inner = Math.round(size * (1 - padRatio * 2));
-  const resized = await sharp(eBuf)
+  const lightMark = await markForLightBg(eBuf);
+  const resized = await sharp(lightMark)
     .resize({
       width: inner,
       height: inner,

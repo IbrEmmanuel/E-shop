@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   LogOut,
@@ -26,12 +26,20 @@ export function VendorShell({
   children,
   storeName,
   email,
+  storeSlug,
 }: {
   children: React.ReactNode;
   storeName: string;
   email: string;
+  storeSlug?: string | null;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const inspectId = searchParams.get("vendorId");
+  const deskQ = inspectId
+    ? `?vendorId=${encodeURIComponent(inspectId)}`
+    : "";
+  const storefrontHref = storeSlug ? `/vendors/${storeSlug}` : "/shop";
 
   return (
     <div className="container-page py-8 md:py-12">
@@ -44,11 +52,15 @@ export function VendorShell({
             <div className="min-w-0">
               <p className="account-shell__name truncate">{storeName}</p>
               <p className="account-shell__email truncate">{email}</p>
+              <p className="mt-1 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)]">
+                Vendor admin
+              </p>
             </div>
           </div>
 
           <nav className="account-shell__nav" aria-label="Vendor desk">
             {nav.map((item) => {
+              const href = `${item.href}${deskQ}`;
               const active = item.exact
                 ? pathname === item.href
                 : pathname === item.href ||
@@ -57,7 +69,7 @@ export function VendorShell({
               return (
                 <Link
                   key={item.href}
-                  href={item.href}
+                  href={href}
                   className={cn(
                     "account-shell__link",
                     active && "account-shell__link--active",
@@ -71,7 +83,7 @@ export function VendorShell({
           </nav>
 
           <div className="account-shell__foot">
-            <Link href="/shop" className="account-shell__link">
+            <Link href={storefrontHref} className="account-shell__link">
               View storefront
             </Link>
             <form action={logoutAction}>

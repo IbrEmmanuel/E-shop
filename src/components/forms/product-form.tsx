@@ -35,11 +35,14 @@ export function ProductForm({
   product,
   vendors,
   defaultVendorId,
+  returnTo,
 }: {
   categories: Category[];
   product?: ProductDefaults;
   vendors?: { id: string; storeName: string }[];
   defaultVendorId?: string;
+  /** After create, stay on this desk path (e.g. /vendor/products?vendorId=…). */
+  returnTo?: string;
 }) {
   const isEdit = Boolean(product?.id);
   const [imagePreview, setImagePreview] = useState(product?.imageUrl ?? "");
@@ -56,6 +59,12 @@ export function ProductForm({
     >
       {product?.id ? (
         <input type="hidden" name="productId" value={product.id} />
+      ) : null}
+      {returnTo ? (
+        <input type="hidden" name="returnTo" value={returnTo} />
+      ) : null}
+      {!isEdit && defaultVendorId && (!vendors || vendors.length === 0) ? (
+        <input type="hidden" name="vendorId" value={defaultVendorId} />
       ) : null}
       {state && !state.ok ? <Alert tone="danger">{state.error}</Alert> : null}
       {state && state.ok && state.message ? (

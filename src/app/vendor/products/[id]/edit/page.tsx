@@ -1,17 +1,37 @@
 import { notFound, redirect } from "next/navigation";
 import { ProductForm } from "@/components/forms/product-form";
 import { getSessionUser } from "@/lib/auth";
+import { isStaffRole } from "@/lib/roles";
+import { resolveVendorDesk, vendorDeskQuery } from "@/lib/vendor-desk";
 import { prisma } from "@/lib/db";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ vendorId?: string }>;
+};
 
-export default async function VendorEditProductPage({ params }: Props) {
+export default async function VendorEditProductPage({
+  params,
+  searchParams,
+}: Props) {
   const { id } = await params;
   const user = await getSessionUser();
   if (!user) redirect(`/login?callbackUrl=/vendor/products/${id}/edit`);
 
-  const vendor = await prisma.vendor.findUnique({ where: { userId: user.id } });
-  if (!vendor) redirect("/vendor/apply");
+  const query = (await searchParams) ?? {};
+  const desk = await resolveVendorDesk({
+    userId: user.id,
+    role: user.role,
+    vendorId: query.vendorId,
+  });
+
+  if (!desk.ok) {
+    if (isStaffRole(user.role)) redirect("/admin/vendors");
+    redirect("/vendor/apply");
+  }
+
+  const { vendor, inspecting } = desk;
+  const deskQ = vendorDeskQuery(vendor.id, inspecting);
 
   const product = await prisma.product.findFirst({
     where: { id, vendorId: vendor.id },
@@ -29,12 +49,15 @@ export default async function VendorEditProductPage({ params }: Props) {
     <div>
       <header className="account-hero">
         <h1 className="account-hero__title">Edit product</h1>
-        <p className="account-hero__lede">{product.title}</p>
+        <p className="account-hero__lede">
+          {product.title} · {vendor.storeName}
+        </p>
       </header>
       <ProductForm
         categories={categories}
         defaultVendorId={vendor.id}
         vendors={[{ id: vendor.id, storeName: vendor.storeName }]}
+        returnTo={`/vendor/products${deskQ}`}
         product={{
           id: product.id,
           title: product.title,

@@ -15,6 +15,7 @@ import { checkVendorProductQuota } from "@/services/rentals";
 import { getVendorMetrics } from "@/services/vendors";
 import {
   ensureVendorWallet,
+  getVendorEarningsSummary,
   getVendorWorkspaceStats,
 } from "@/services/workspace";
 
@@ -41,20 +42,22 @@ export default async function VendorOverviewPage({
   const { vendor, inspecting } = desk;
   const q = vendorDeskQuery(vendor.id, inspecting);
 
-  const [metrics, stats, wallet, recentOrders, quota] = await Promise.all([
-    getVendorMetrics(user, vendor.id),
-    getVendorWorkspaceStats(vendor.id),
-    ensureVendorWallet(vendor.id),
-    prisma.vendorOrder.findMany({
-      where: { vendorId: vendor.id },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-      include: {
-        order: { select: { orderNumber: true, createdAt: true } },
-      },
-    }),
-    checkVendorProductQuota(vendor.id, 0).catch(() => null),
-  ]);
+  const [metrics, stats, wallet, earnings, recentOrders, quota] =
+    await Promise.all([
+      getVendorMetrics(user, vendor.id),
+      getVendorWorkspaceStats(vendor.id),
+      ensureVendorWallet(vendor.id),
+      getVendorEarningsSummary(vendor.id),
+      prisma.vendorOrder.findMany({
+        where: { vendorId: vendor.id },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        include: {
+          order: { select: { orderNumber: true, createdAt: true } },
+        },
+      }),
+      checkVendorProductQuota(vendor.id, 0).catch(() => null),
+    ]);
 
   return (
     <div>
@@ -66,7 +69,8 @@ export default async function VendorOverviewPage({
         ) : null}
         <h1 className="account-hero__title">{vendor.storeName}</h1>
         <p className="account-hero__lede">
-          Manage catalogue, fulfilment, and payouts for this shop.
+          Your vendor admin — products, fulfilment, and revenue for this shop
+          only.
           {vendor.rental ? (
             <>
               {" "}
@@ -76,13 +80,16 @@ export default async function VendorOverviewPage({
         </p>
       </header>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <div className="account-panel">
           <p className="text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
             Products
           </p>
           <p className="mt-2 text-2xl font-semibold tabular-nums">
             {metrics.publishedCount}/{metrics.productCount}
+          </p>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            Published / total
           </p>
         </div>
         <div className="account-panel">
@@ -105,10 +112,32 @@ export default async function VendorOverviewPage({
         </div>
         <div className="account-panel">
           <p className="text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
-            Wallet
+            Gross sales
+          </p>
+          <p className="mt-2 text-2xl font-semibold tabular-nums">
+            {formatMoney(earnings.grossSalesMinor, earnings.currency)}
+          </p>
+        </div>
+        <div className="account-panel">
+          <p className="text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
+            Total earned
+          </p>
+          <p className="mt-2 text-2xl font-semibold tabular-nums">
+            {formatMoney(earnings.lifetimeNetMinor, earnings.currency)}
+          </p>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            Net after commission
+          </p>
+        </div>
+        <div className="account-panel">
+          <p className="text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
+            Available
           </p>
           <p className="mt-2 text-2xl font-semibold tabular-nums">
             {formatMoney(wallet.balanceMinor, wallet.currency)}
+          </p>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            Ready to withdraw
           </p>
         </div>
       </div>
@@ -156,13 +185,16 @@ export default async function VendorOverviewPage({
 
       <div className="mt-6 flex flex-wrap gap-3">
         <Button asChild href={`/vendor/products${q}`} variant="primary">
-          Products
+          Manage products
         </Button>
         <Button asChild href={`/vendor/orders${q}`} variant="outline">
           Orders
         </Button>
         <Button asChild href={`/vendor/earnings${q}`} variant="outline">
-          Earnings
+          Revenue
+        </Button>
+        <Button asChild href={`/vendor/payouts${q}`} variant="outline">
+          Payouts
         </Button>
         {inspecting ? (
           <Button asChild href="/admin/vendors" variant="ghost">

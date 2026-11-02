@@ -2,6 +2,7 @@ import { SectionHeader } from "@/components/dashboard/section-header";
 import { VendorTabs } from "@/components/dashboard/vendor-tabs";
 import { Button } from "@/components/ui/button";
 import { getSessionUser } from "@/lib/auth";
+import { maxActiveVendors } from "@/lib/env";
 import { formatMoney } from "@/lib/money";
 import {
   ensureUserWorkspace,
@@ -64,12 +65,13 @@ export default async function VendorOverviewPage() {
         })
       : [];
 
+  const vendorCap = maxActiveVendors();
   const activeVendors =
     user.role === "ADMIN" || user.role === "SUPER_ADMIN"
       ? await prisma.vendor.findMany({
           where: { status: "ACTIVE" },
           orderBy: { storeName: "asc" },
-          take: 40,
+          take: Math.max(vendorCap, 40),
           select: {
             id: true,
             storeName: true,
@@ -145,42 +147,56 @@ export default async function VendorOverviewPage() {
         </div>
       ) : null}
 
-      {activeVendors.length > 0 ? (
+      {activeVendors.length > 0 ||
+      user.role === "ADMIN" ||
+      user.role === "SUPER_ADMIN" ? (
         <section className="space-y-4">
-          <h2 className="text-2xl">Active shops</h2>
-          <ul className="space-y-3">
-            {activeVendors.map((v) => (
-              <li
-                key={v.id}
-                className="card flex flex-wrap items-center justify-between gap-3 p-4"
-              >
-                <div>
-                  <p className="font-semibold">{v.storeName}</p>
-                  <p className="text-sm text-[var(--color-text-muted)]">
-                    {v.contactEmail || v.user.email}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    asChild
-                    href={`/vendor?vendorId=${encodeURIComponent(v.id)}`}
-                    size="sm"
-                    variant="outline"
-                  >
-                    Inspect desk
-                  </Button>
-                  <Button
-                    asChild
-                    href={`/vendor/orders?vendorId=${encodeURIComponent(v.id)}`}
-                    size="sm"
-                    variant="ghost"
-                  >
-                    Orders
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <h2 className="text-2xl">Active shops</h2>
+            <p className="text-sm text-[var(--color-text-muted)]">
+              Capacity {activeVendors.length}/{vendorCap} vendors
+              (each has a private desk at /vendor)
+            </p>
+          </div>
+          {activeVendors.length === 0 ? (
+            <p className="text-sm text-[var(--color-text-muted)]">
+              No active shops yet. Approve applications to open vendor desks.
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {activeVendors.map((v) => (
+                <li
+                  key={v.id}
+                  className="card flex flex-wrap items-center justify-between gap-3 p-4"
+                >
+                  <div>
+                    <p className="font-semibold">{v.storeName}</p>
+                    <p className="text-sm text-[var(--color-text-muted)]">
+                      {v.contactEmail || v.user.email}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      asChild
+                      href={`/vendor?vendorId=${encodeURIComponent(v.id)}`}
+                      size="sm"
+                      variant="outline"
+                    >
+                      Inspect desk
+                    </Button>
+                    <Button
+                      asChild
+                      href={`/vendor/orders?vendorId=${encodeURIComponent(v.id)}`}
+                      size="sm"
+                      variant="ghost"
+                    >
+                      Orders
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       ) : null}
 

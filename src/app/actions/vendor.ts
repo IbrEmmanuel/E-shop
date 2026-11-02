@@ -256,7 +256,15 @@ export async function createProductAction(
 
   revalidatePath("/admin/vendors/products");
   revalidatePath("/vendor/products");
-  redirect(user.role === "VENDOR" ? "/vendor/products" : "/admin/vendors/products");
+
+  const returnTo = String(formData.get("returnTo") || "").trim();
+  if (returnTo.startsWith("/vendor")) {
+    redirect(returnTo);
+  }
+  if (user.role === "VENDOR") {
+    redirect("/vendor/products");
+  }
+  redirect("/admin/vendors/products");
 }
 
 export async function updateProductAction(
@@ -314,13 +322,13 @@ export async function updateProductAction(
   if (status === "REJECTED" && (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN")) {
     status = "PENDING_REVIEW";
   }
-  if (status === "PUBLISHED" && (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN")) {
-    const gate = await checkRentalAllowsPublishing(vendor.id);
-    if (!gate.allowed) {
-      status = "PENDING_REVIEW";
-    } else {
-      status = "PENDING_REVIEW";
-    }
+  // Vendors cannot self-publish; admin review gates the catalogue.
+  if (
+    status === "PUBLISHED" &&
+    user.role !== "ADMIN" &&
+    user.role !== "SUPER_ADMIN"
+  ) {
+    status = "PENDING_REVIEW";
   }
 
   let imageUrl = parsed.data.imageUrl?.trim() || null;
@@ -390,6 +398,48 @@ export async function updateProductAction(
   revalidatePath("/categories");
   revalidatePath(`/products/${existing.slug}`);
   return { ok: true, message: "Product saved." };
+}
+
+export async function archiveProductAction(
+  formData: FormData,
+): Promise<void> {
+  const user = await getSessionUser();
+  if (
+    !user ||
+    (user.role !== "VENDOR" &&
+      user.role !== "ADMIN" &&
+      user.role !== "SUPER_ADMIN")
+  ) {
+    return;
+  }
+
+  const productId = String(formData.get("productId") ?? "");
+  const existing = await prisma.product.findUnique({ where: { id: productId } });
+  if (!existing) return;
+
+  try {
+    await requireOwnedVendor(user, existing.vendorId);
+  } catch {
+    return;
+  }
+
+  await prisma.product.update({
+    where: { id: existing.id },
+    data: { status: "ARCHIVED" },
+  });
+
+  await writeAuditLog({
+    actorId: user.id,
+    action: "product.archived",
+    entityType: "Product",
+    entityId: existing.id,
+  });
+
+  revalidatePath("/vendor/products");
+  revalidatePath("/admin/vendors/products");
+  revalidatePath("/shop");
+  revalidatePath("/categories");
+  revalidatePath(`/products/${existing.slug}`);
 }
 
 export async function advanceVendorOrderAction(

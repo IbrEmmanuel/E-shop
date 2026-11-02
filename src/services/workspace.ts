@@ -119,7 +119,9 @@ export async function getVendorWorkspaceStats(vendorId: string) {
 
   const gross = vendorOrders
     .filter((o) =>
-      ["PAID", "PROCESSING", "SHIPPED", "DELIVERED"].includes(o.status),
+      ["PAID", "ACCEPTED", "PROCESSING", "PACKAGED", "SHIPPED", "DELIVERED"].includes(
+        o.status,
+      ),
     )
     .reduce((s, o) => s + o.totalMinor, 0);
 
@@ -138,4 +140,72 @@ export async function ensureVendorWallet(vendorId: string) {
     create: { vendorId, balanceMinor: 0, currency: "NGN" },
     update: {},
   });
+}
+
+/** Per-vendor money snapshot for the seller desk. */
+export async function getVendorEarningsSummary(vendorId: string) {
+  const wallet = await ensureVendorWallet(vendorId);
+
+  const [orders, settlements, clawbacks, payoutsPaid] = await Promise.all([
+    prisma.vendorOrder.findMany({
+      where: {
+        vendorId,
+        status: {
+          in: [
+            "PAID",
+            "ACCEPTED",
+            "PROCESSING",
+            "PACKAGED",
+            "SHIPPED",
+            "DELIVERED",
+          ],
+        },
+      },
+      select: {
+        totalMinor: true,
+        vendorNetMinor: true,
+        commissionMinor: true,
+        status: true,
+      },
+    }),
+    prisma.walletLedger.aggregate({
+      where: { walletId: wallet.id, reason: "sale_settlement" },
+      _sum: { deltaMinor: true },
+    }),
+    prisma.walletLedger.aggregate({
+      where: { walletId: wallet.id, reason: "refund_clawback" },
+      _sum: { deltaMinor: true },
+    }),
+    prisma.payoutRequest.aggregate({
+      where: { vendorId, status: { in: ["APPROVED", "PAID"] } },
+      _sum: { amountMinor: true },
+    }),
+  ]);
+
+  const grossSalesMinor = orders.reduce((s, o) => s + o.totalMinor, 0);
+  const netFromOrdersMinor = orders.reduce(
+    (s, o) => s + (o.vendorNetMinor ?? 0),
+    0,
+  );
+  const commissionMinor = orders.reduce(
+    (s, o) => s + (o.commissionMinor ?? 0),
+    0,
+  );
+  const settledNetMinor = settlements._sum.deltaMinor ?? 0;
+  const clawbackMinor = Math.abs(clawbacks._sum.deltaMinor ?? 0);
+  const lifetimeNetMinor = settledNetMinor - clawbackMinor;
+  const paidOutMinor = payoutsPaid._sum.amountMinor ?? 0;
+  const deliveredCount = orders.filter((o) => o.status === "DELIVERED").length;
+
+  return {
+    currency: wallet.currency || "NGN",
+    availableMinor: wallet.balanceMinor,
+    grossSalesMinor,
+    netFromOrdersMinor,
+    commissionMinor,
+    lifetimeNetMinor: lifetimeNetMinor > 0 ? lifetimeNetMinor : Math.max(0, netFromOrdersMinor),
+    paidOutMinor,
+    orderCount: orders.length,
+    deliveredCount,
+  };
 }
