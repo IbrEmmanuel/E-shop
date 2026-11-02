@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Fraunces, Inter } from "next/font/google";
+import { Fraunces, Inter, Space_Grotesk } from "next/font/google";
 import Script from "next/script";
 import { ThemeProvider, themeInitScript } from "@/components/theme-provider";
 import "./globals.css";
@@ -13,6 +13,12 @@ const inter = Inter({
 const fraunces = Fraunces({
   subsets: ["latin"],
   variable: "--font-fraunces",
+  display: "swap",
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-tech",
   display: "swap",
 });
 
@@ -78,7 +84,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${fraunces.variable} light`}
+      className={`${inter.variable} ${fraunces.variable} ${spaceGrotesk.variable} light`}
       data-theme="light"
       data-scroll-behavior="smooth"
       suppressHydrationWarning

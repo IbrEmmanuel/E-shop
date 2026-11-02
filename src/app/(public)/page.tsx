@@ -7,6 +7,7 @@ import { listActivePlans } from "@/services/rentals";
 import { getSiteSettings } from "@/services/settings";
 import { AuthParticleOrb } from "@/components/auth/auth-particle-orb";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { HomeHeroWriteup } from "@/components/home/home-hero-writeup";
 import { SponsoredShelf } from "@/components/ads/sponsored-shelf";
 import { SectionHead } from "@/components/layout/section-head";
 import { ProductGrid } from "@/components/products/product-grid";
@@ -119,14 +120,13 @@ export default async function HomePage() {
             <div className="home-reveal home-reveal--1">
               <BrandLogo href={null} size="xl" priority />
             </div>
-            <h1 className="home-reveal home-reveal--2 type-body max-w-lg md:text-lg">
-              {settings.tagline}
-            </h1>
-            <p className="home-reveal home-reveal--3 max-w-md text-sm leading-relaxed text-[var(--color-soft-muted)]">
-              {vendorCount > 0
-                ? `Independent shops with live inventory, bank transfer checkout, and delivery you can track.`
-                : `Live inventory, bank transfer checkout, and monthly shop rentals for independent makers.`}
-            </p>
+            <HomeHeroWriteup
+              lede={
+                vendorCount > 0
+                  ? "Live inventory, bank-transfer checkout, and delivery you can track — from independent shops online now."
+                  : "Live inventory, bank-transfer checkout, and monthly shop rentals for makers ready to ship."
+              }
+            />
             <div className="home-reveal home-reveal--4 button-group button-group--stack-mobile pt-1">
               <Button asChild href="/shop" variant="accent" size="lg">
                 Shop products
