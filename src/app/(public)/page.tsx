@@ -99,44 +99,43 @@ export default async function HomePage() {
   return (
     <div className="home-page">
       <section className="home-hero">
-        <div className="home-hero__backdrop" aria-hidden>
-          <div className="home-hero__atmosphere">
-            <span className="home-hero__glow home-hero__glow--a" />
-            <span className="home-hero__glow home-hero__glow--b" />
-            <span className="home-hero__glow home-hero__glow--c" />
-            <span className="home-hero__grain" />
-          </div>
-          <div className="home-hero__orb-stage">
+        {/* z-0 — radar-masked backdrop (same stack pattern as reference hero) */}
+        <div className="home-hero__radar" aria-hidden>
+          <span className="home-hero__radar-glow" />
+          <span className="home-hero__grain" />
+          <div className="home-hero__radar-orb">
             <AuthParticleOrb
               label={settings.siteName}
               variant="hero"
               className="home-hero__orb"
             />
           </div>
-          <div className="home-hero__wash" />
         </div>
-        <div className="home-hero__content container-page">
-          <div className="home-hero__copy">
-            <div className="home-reveal home-reveal--1">
-              <BrandLogo href={null} size="xl" priority />
-            </div>
-            <HomeHeroWriteup
-              lede={
-                vendorCount > 0
-                  ? "Live inventory, bank-transfer checkout, and delivery you can track — from independent shops online now."
-                  : "Live inventory, bank-transfer checkout, and monthly shop rentals for makers ready to ship."
-              }
-            />
-            <div className="home-reveal home-reveal--4 button-group button-group--stack-mobile pt-1">
-              <Button asChild href="/shop" variant="accent" size="lg">
-                Shop products
-              </Button>
-              <Button asChild href="/categories" variant="dark" size="lg">
-                See categories
-              </Button>
-            </div>
+
+        {/* z-10 — centered stage */}
+        <div className="home-hero__stage">
+          <div className="home-reveal home-reveal--1">
+            <BrandLogo href={null} size="xl" priority />
+          </div>
+          <HomeHeroWriteup
+            lede={
+              vendorCount > 0
+                ? "Browse what’s in stock now, pay by bank transfer, and follow the order through delivery."
+                : "Browse the catalog, pay by bank transfer, or rent a shop and start listing this month."
+            }
+          />
+          <div className="home-reveal home-reveal--4 home-hero__actions button-group">
+            <Button asChild href="/shop" variant="accent" size="lg">
+              Shop products
+            </Button>
+            <Button asChild href="/categories" variant="dark" size="lg">
+              See categories
+            </Button>
           </div>
         </div>
+
+        {/* z-20 — bottom backdrop shadow / fade into page */}
+        <div className="home-hero__shadow" aria-hidden />
       </section>
 
       <section className="app-section container-page py-20 md:py-28">

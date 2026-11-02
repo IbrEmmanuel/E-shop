@@ -1,43 +1,30 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 type HomeHeroWriteupProps = {
   lede: string;
 };
 
-const ROTATING = [
-  "makers who ship.",
-  "operators at scale.",
-  "shops that clear.",
-  "vendors who grow.",
+/** Concrete product lines — no slogan carousel. */
+const BOARD = [
+  "Live stock from active shops",
+  "Bank transfer at checkout",
+  "Delivery tracking after approval",
+  "Monthly rental for sellers",
+  "Private vendor desk for each store",
 ];
 
 export function HomeHeroWriteup({ lede }: HomeHeroWriteupProps) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const [index, setIndex] = useState(0);
-  const [reduceMotion, setReduceMotion] = useState(false);
-
-  useEffect(() => {
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const sync = () => setReduceMotion(media.matches);
-    sync();
-    media.addEventListener("change", sync);
-    return () => media.removeEventListener("change", sync);
-  }, []);
-
-  useEffect(() => {
-    if (reduceMotion) return;
-    const id = window.setInterval(() => {
-      setIndex((n) => (n + 1) % ROTATING.length);
-    }, 3200);
-    return () => window.clearInterval(id);
-  }, [reduceMotion]);
 
   useEffect(() => {
     const root = rootRef.current;
-    if (!root || reduceMotion) {
-      root?.style.setProperty("--hero-scroll", "0");
+    if (!root) return;
+
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (reduce.matches) {
+      root.style.setProperty("--hero-scroll", "0");
       return;
     }
 
@@ -47,12 +34,9 @@ export function HomeHeroWriteup({ lede }: HomeHeroWriteupProps) {
       const hero = root.closest(".home-hero");
       if (!hero) return;
       const rect = hero.getBoundingClientRect();
-      const travel = Math.max(rect.height * 0.55, 160);
-      const scrolled = Math.min(Math.max(-rect.top, 0), travel);
-      const progress = scrolled / travel;
-      // Soft cubic ease — premium, not linear slap.
-      const eased = 1 - Math.pow(1 - progress, 2.4);
-      root.style.setProperty("--hero-scroll", eased.toFixed(4));
+      const travel = Math.max(rect.height * 0.5, 140);
+      const progress = Math.min(Math.max(-rect.top, 0), travel) / travel;
+      root.style.setProperty("--hero-scroll", progress.toFixed(4));
     };
 
     const onScroll = () => {
@@ -68,38 +52,33 @@ export function HomeHeroWriteup({ lede }: HomeHeroWriteupProps) {
       window.removeEventListener("resize", onScroll);
       if (frame) window.cancelAnimationFrame(frame);
     };
-  }, [reduceMotion]);
+  }, []);
+
+  // Duplicate once for a seamless vertical loop.
+  const rows = [...BOARD, ...BOARD];
 
   return (
-    <div ref={rootRef} className="home-hero-writeup" data-ready="1">
-      <p className="home-hero-writeup__eyebrow home-reveal home-reveal--2">
-        Marketplace infrastructure
-      </p>
-
+    <div ref={rootRef} className="home-hero-writeup">
       <h1 className="home-hero-writeup__headline">
-        <span className="home-hero-writeup__mask home-reveal home-reveal--2">
-          <span className="home-hero-writeup__line">Multi-vendor commerce,</span>
-        </span>
-        <span className="home-hero-writeup__mask home-reveal home-reveal--3">
-          <span className="home-hero-writeup__line home-hero-writeup__line--row">
-            <span className="home-hero-writeup__static">engineered for</span>
-            <span className="home-hero-writeup__reel" aria-live="polite">
-              {ROTATING.map((phrase, i) => (
-                <span
-                  key={phrase}
-                  className="home-hero-writeup__reel-item"
-                  data-active={i === index ? "1" : "0"}
-                  aria-hidden={i === index ? undefined : true}
-                >
-                  {phrase}
-                </span>
-              ))}
-            </span>
-          </span>
+        <span className="home-hero-writeup__rise">Independent shops.</span>
+        <span className="home-hero-writeup__rise home-hero-writeup__rise--delay">
+          One checkout.
         </span>
       </h1>
 
-      <p className="home-hero-writeup__lede home-reveal home-reveal--3">{lede}</p>
+      <div className="home-hero-writeup__board" aria-label="Marketplace highlights">
+        <div className="home-hero-writeup__board-track">
+          {rows.map((line, i) => (
+            <p key={`${line}-${i}`} className="home-hero-writeup__board-line">
+              {line}
+            </p>
+          ))}
+        </div>
+      </div>
+
+      <p className="home-hero-writeup__lede home-hero-writeup__rise home-hero-writeup__rise--late">
+        {lede}
+      </p>
     </div>
   );
 }
